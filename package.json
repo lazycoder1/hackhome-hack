@@ -1,0 +1,51 @@
+{
+  "name": "posthog-poc-automation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "api:start": "node dist/src/server/index.js",
+    "seed": "node scripts/seed-demo.mjs",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "npm run build && node dist/src/cli/demo.js",
+    "posthog:mcp:smoke": "node dist/src/cli/posthog-mcp-smoke.js",
+    "posthog:mcp:mutation-smoke": "node dist/src/cli/posthog-mcp-mutation-smoke.js",
+    "posthog:agentic-dashboard-smoke": "npm run build && node dist/src/cli/posthog-agentic-dashboard-live-smoke.js",
+    "posthog:agentic-dashboard-create": "npm run build && node dist/src/cli/posthog-agentic-dashboard-live-smoke.js --create",
+    "gmail:mcp:deepseek-draft-smoke": "node dist/src/cli/gmail-mcp-deepseek-draft-smoke.js",
+    "gmail:api-send-smoke": "node dist/src/cli/gmail-api-send-smoke.js",
+    "gmail:api-inbox-smoke": "node dist/src/cli/gmail-api-inbox-monitor-smoke.js",
+    "trigger:dev": "npx trigger.dev@4.4.6 dev",
+    "trigger:deploy": "npx trigger.dev@4.4.6 deploy"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "^4.4.0",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.1"
+  },
+  "overrides": {
+    "cookie": "^1.1.1",
+    "systeminformation": "^5.31.7",
+    "uuid": "^14.0.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.10.5",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.60.1",
+    "vitest": "^4.1.8"
+  }
+}

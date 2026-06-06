@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------------------
+   PoC Pilot design system — PostHog-inspired.
+   Warm cream canvas, near-black ink, hard 2px borders with offset shadows,
+   and the signature PostHog blue / red-orange / yellow accent triad.
+---------------------------------------------------------------------------- */
+@theme {
+  --color-cream: #eeefe9;
+  --color-canvas: #f3f4ef;
+  --color-surface: #ffffff;
+  --color-ink: #151515;
+  --color-ink-soft: #2d2d2d;
+  --color-muted: #6b7066;
+  --color-line: #151515;
+  --color-hairline: #dcdcd4;
+
+  --color-brand: #1d4aff;
+  --color-brand-ink: #1136c9;
+  --color-flame: #f54e00;
+  --color-gold: #f9bd2b;
+  --color-grass: #1f9d55;
+  --color-grass-ink: #0f7a3d;
+  --color-berry: #c4267a;
+  --color-sky: #2cc2e3;
+
+  --color-pass: #1f9d55;
+  --color-warn: #d99100;
+  --color-fail: #e3431f;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Menlo", monospace;
+
+  --radius-card: 14px;
+  --shadow-pop: 4px 4px 0 0 #151515;
+  --shadow-pop-sm: 2px 2px 0 0 #151515;
+  --shadow-pop-lg: 6px 6px 0 0 #151515;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-hairline);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+    font-weight: 800;
+  }
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  /* Signature popped card: hard border + offset shadow. */
+  .pop {
+    border: 2px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+    background: var(--color-surface);
+  }
+  .pop-sm {
+    border: 2px solid var(--color-line);
+    border-radius: 10px;
+    box-shadow: var(--shadow-pop-sm);
+    background: var(--color-surface);
+  }
+  .pop-flat {
+    border: 2px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 2px solid var(--color-line);
+    border-radius: 10px;
+    padding: 0.55rem 0.95rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      transform 0.06s ease,
+      box-shadow 0.06s ease;
+    box-shadow: var(--shadow-pop-sm);
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+  .btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 0 var(--color-line);
+  }
+  .btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 0 var(--color-line);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: var(--shadow-pop-sm);
+  }
+  .btn-sm {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.78rem;
+    border-radius: 8px;
+  }
+  .btn-primary {
+    background: var(--color-brand);
+    color: #fff;
+  }
+  .btn-flame {
+    background: var(--color-flame);
+    color: #fff;
+  }
+  .btn-grass {
+    background: var(--color-grass);
+    color: #fff;
+  }
+  .btn-ink {
+    background: var(--color-ink);
+    color: #fff;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1.5px solid var(--color-line);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+  }
+
+  .ticker {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(21, 21, 21, 0.06) 8px,
+      rgba(21, 21, 21, 0.06) 16px
+    );
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 74, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(29, 74, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 74, 255, 0);
+  }
+}
+.live-dot {
+  animation: pulse-ring 1.8s infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.3s ease both;
+}

@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.data/
+.env
+.DS_Store
+docs/.DS_Store
+
+# Env files beyond bare .env (.env.local, .env.production, …); keep the committed template
+.env.*
+!.env.example
+!.env.sample
+
+# Trigger.dev local build/dev cache
+.trigger/
+
+# Test coverage + logs
+coverage/
+*.log
+.gstack/

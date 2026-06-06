@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.trigger/
+.data/
+package-lock.json
+
+# Markdown (README, ARCHITECTURE, DESIGN, docs/) is hand-formatted with mermaid
+# diagrams and tables; leave it to authors rather than the formatter.
+*.md
