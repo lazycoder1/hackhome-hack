@@ -186,11 +186,12 @@ export class PostHogPocSetupAgent {
         dashboards.push(dashboardRef);
         createdResources.push(dashboardRef);
 
+        const hardcodedTiles = hardcodedConvincedWidgetDashboardTiles(plan);
         const tiles =
-          validatedTiles?.length
+          hardcodedTiles ??
+          (validatedTiles?.length
             ? validatedTiles.map(agenticTileForCreation)
-            :
-          dashboardTiles(dashboard.tiles, plan.setup.events);
+            : dashboardTiles(dashboard.tiles, plan.setup.events));
         for (const tile of tiles) {
           const insight = await createOrUseExistingResource({
             type: "insight",
@@ -674,6 +675,190 @@ function agenticTileForCreation(tile: AgenticDashboardTile): DashboardTileForCre
     type: "other",
     sourceEvents: [],
     insightQuery: tile.insightQuery,
+  };
+}
+
+function hardcodedConvincedWidgetDashboardTiles(
+  plan: PocPlan,
+): DashboardTileForCreation[] | undefined {
+  const text = [
+    plan.customer.companyName,
+    plan.customer.companySlug,
+    plan.objective,
+    ...plan.successCriteria,
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (!/convinced|enmovil|bizom|widget/.test(text)) {
+    return undefined;
+  }
+
+  const filters = `
+timestamp >= now() - INTERVAL 30 DAY
+AND NOT multiSearchAnyCaseInsensitive(coalesce(toString(properties['$current_url']), ''), ['localhost', 'smoke-test', 'synthetic', 'admin', 'staging', 'marketing-preview', 'pageUrl=preview', 'demo-clones.vercel.app', 'wpcomstaging.com', 'elementor-preview', 'preview=true', 'preview_id', 'preview_nonce', 'customize_messenger_channel=preview', 'wp-admin'])
+`.trim();
+  const orgExpr = `
+if(
+  notEmpty(coalesce(toString(properties['orgSlug']), '')),
+  lower(toString(properties['orgSlug'])),
+  if(
+    multiSearchAnyCaseInsensitive(concat(coalesce(toString(properties['$pathname']), ''), ' ', coalesce(toString(properties['$current_url']), '')), ['enmovil']),
+    'enmovil',
+    if(
+      multiSearchAnyCaseInsensitive(concat(coalesce(toString(properties['$pathname']), ''), ' ', coalesce(toString(properties['$current_url']), '')), ['bizom']),
+      'bizom',
+      'unknown'
+    )
+  )
+)
+`.trim();
+  const pageExpr = `
+coalesce(nullIf(toString(properties['$pathname']), ''), nullIf(toString(properties['$current_url']), ''), 'unknown')
+`.trim();
+  const sessionExpr = `
+coalesce(nullIf(toString(properties['$session_id']), ''), nullIf(toString(properties['sessionId']), ''), distinct_id)
+`.trim();
+  const voicePredicate = `(event LIKE 'voice_only.%' OR event LIKE 'voice_widget.%')`;
+  const productionEventPredicate = `(event = '$pageview' OR event = 'widget_email_submitted' OR event = 'voice_only.demo_request_submitted' OR ${voicePredicate})`;
+
+  return [
+    hogqlTile(
+      "Top widget pages by production sessions",
+      "Which Enmovil and Bizom pages get the most widget usage.",
+      `
+SELECT
+  ${orgExpr} AS org,
+  ${pageExpr} AS page,
+  uniq(${sessionExpr}) AS sessions,
+  countIf(event = '$pageview') AS pageviews,
+  countIf(${voicePredicate}) AS voice_events
+FROM events
+WHERE ${filters}
+  AND ${productionEventPredicate}
+  AND ${orgExpr} IN ('enmovil', 'bizom')
+GROUP BY org, page
+ORDER BY sessions DESC
+LIMIT 100
+`.trim(),
+    ),
+    hogqlTile(
+      "Landing page conversion",
+      "Which pages convert into email captures or demo requests.",
+      `
+SELECT
+  ${orgExpr} AS org,
+  ${pageExpr} AS page,
+  uniq(${sessionExpr}) AS sessions,
+  countIf(event = 'widget_email_submitted') AS email_captures,
+  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests,
+  round(100 * email_captures / greatest(sessions, 1), 2) AS email_capture_rate,
+  round(100 * demo_requests / greatest(sessions, 1), 2) AS demo_request_rate
+FROM events
+WHERE ${filters}
+  AND ${productionEventPredicate}
+  AND ${orgExpr} IN ('enmovil', 'bizom')
+GROUP BY org, page
+ORDER BY demo_requests DESC, email_captures DESC, sessions DESC
+LIMIT 100
+`.trim(),
+    ),
+    hogqlTile(
+      "Zero-conversion watchlist",
+      "Where adoption is weak despite sessions.",
+      `
+SELECT
+  ${orgExpr} AS org,
+  ${pageExpr} AS page,
+  uniq(${sessionExpr}) AS sessions,
+  countIf(event = 'widget_email_submitted') AS email_captures,
+  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests
+FROM events
+WHERE ${filters}
+  AND ${productionEventPredicate}
+  AND ${orgExpr} IN ('enmovil', 'bizom')
+GROUP BY org, page
+HAVING sessions >= 5 AND email_captures = 0 AND demo_requests = 0
+ORDER BY sessions DESC
+LIMIT 100
+`.trim(),
+    ),
+    hogqlTile(
+      "Campaign token performance",
+      "Campaign tokens ranked by sessions and conversion.",
+      `
+SELECT
+  ${orgExpr} AS org,
+  coalesce(nullIf(toString(properties['campaignToken']), ''), nullIf(toString(properties['campaign_token']), ''), nullIf(toString(properties['utm_campaign']), ''), 'unknown') AS campaign_token,
+  uniq(${sessionExpr}) AS sessions,
+  countIf(event = 'widget_email_submitted') AS email_captures,
+  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests,
+  round(100 * (email_captures + demo_requests) / greatest(sessions, 1), 2) AS total_conversion_rate
+FROM events
+WHERE ${filters}
+  AND ${productionEventPredicate}
+  AND ${orgExpr} IN ('enmovil', 'bizom')
+GROUP BY org, campaign_token
+ORDER BY sessions DESC, total_conversion_rate DESC
+LIMIT 100
+`.trim(),
+    ),
+    hogqlTile(
+      "Chat vs voice split",
+      "Overall usage and conversion split by chat versus voice.",
+      `
+SELECT
+  ${orgExpr} AS org,
+  if(${voicePredicate}, 'voice', 'chat') AS channel,
+  uniq(${sessionExpr}) AS sessions,
+  countIf(event = 'widget_email_submitted') AS email_captures,
+  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests
+FROM events
+WHERE ${filters}
+  AND ${productionEventPredicate}
+  AND ${orgExpr} IN ('enmovil', 'bizom')
+GROUP BY org, channel
+ORDER BY org, sessions DESC
+LIMIT 100
+`.trim(),
+    ),
+    hogqlTile(
+      "Daily production trend",
+      "Daily sessions, email captures, and demo requests after preview/staging filtering.",
+      `
+SELECT
+  toDate(timestamp) AS day,
+  ${orgExpr} AS org,
+  uniq(${sessionExpr}) AS sessions,
+  countIf(event = 'widget_email_submitted') AS email_captures,
+  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests
+FROM events
+WHERE ${filters}
+  AND ${productionEventPredicate}
+  AND ${orgExpr} IN ('enmovil', 'bizom')
+GROUP BY day, org
+ORDER BY day ASC, org ASC
+LIMIT 100
+`.trim(),
+    ),
+  ];
+}
+
+function hogqlTile(
+  title: string,
+  _description: string,
+  query: string,
+): DashboardTileForCreation {
+  return {
+    title,
+    type: "other",
+    sourceEvents: [],
+    insightQuery: {
+      kind: "DataVisualizationNode",
+      source: {
+        kind: "HogQLQuery",
+        query,
+      },
+    },
   };
 }
 
