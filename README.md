@@ -96,8 +96,9 @@ GMAIL_PROCESSED_LABEL_IDS=Label_123
 GOOGLE_OAUTH_CLIENT_ID=...
 GOOGLE_OAUTH_CLIENT_SECRET=...
 GOOGLE_OAUTH_SCOPES="openid email profile https://mail.google.com/ https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.readonly"
-# Leave unset on Railway to use $RAILWAY_VOLUME_MOUNT_PATH/google-oauth-token.json.
-# GOOGLE_OAUTH_TOKEN_STORE_PATH=.data/google-oauth-token.json
+GOOGLE_OAUTH_TOKEN_STORE=sqlite
+# Leave unset on Railway to use $RAILWAY_VOLUME_MOUNT_PATH/pocs.sqlite.
+GOOGLE_OAUTH_SQLITE_PATH=
 GMAIL_MCP_SMOKE_TO=gautamgsabhahit@gmail.com
 SECRETS_MODE=encrypted_file
 SECRET_ENCRYPTION_KEY=use-a-long-random-secret-or-32-byte-base64-key
@@ -134,7 +135,8 @@ For a SQLite-backed Railway service:
 
 - Attach one volume to the API service at `/data`.
 - Set `POC_STORE_MODE=sqlite`.
-- Leave `SQLITE_DB_PATH`, `SECRETS_STORE_PATH`, and `GOOGLE_OAUTH_TOKEN_STORE_PATH` unset so they default to the attached volume.
+- Leave `SQLITE_DB_PATH`, `SECRETS_STORE_PATH`, and `GOOGLE_OAUTH_SQLITE_PATH` unset so they default to the attached volume.
+- Set `GOOGLE_OAUTH_TOKEN_STORE=sqlite` so Gmail OAuth refresh tokens are stored in the same SQLite DB as PoC state.
 - Set `WORKFLOW_MODE=local` if the API and SQLite volume are the source of truth. Trigger.dev Cloud workers cannot read the Railway service volume.
 - Set `DEEPSEEK_API_KEY` before deploying with `WORKFLOW_MODE=local`; the in-process workflow needs it at boot.
 - Set `SECRETS_MODE=encrypted_file`, `SECRET_ENCRYPTION_KEY`, `SECRETS_BASE_URL`, and `APPROVAL_BASE_URL`.
@@ -157,7 +159,7 @@ For Google-hosted Gmail MCP, set `GMAIL_MCP_USER_PROJECT` to the Google Cloud pr
 
 Set `EMAIL_MODE=gmail_api` to send directly through Gmail REST `users.messages.send`. This path builds a text RFC 2822 MIME email, base64url-encodes it into `raw`, and posts to Gmail. The OAuth token needs one of Gmail's send-compatible scopes such as `https://www.googleapis.com/auth/gmail.send` or `https://www.googleapis.com/auth/gmail.compose`.
 
-For UI-based local testing, set `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`, start the API in `WORKFLOW_MODE=local`, then open the React app's Settings page and click **Connect Gmail**. The exchanged OAuth access token is stored in `.data/google-oauth-token.json` by default, which is gitignored and can be cleared with **Forget token**. Google redirect URIs are exact-match: if you open Vite at `http://127.0.0.1:5173`, add `http://127.0.0.1:5173/integrations/google/oauth/callback`; if you open `http://localhost:5173`, add `http://localhost:5173/integrations/google/oauth/callback`. If you connect from the API origin directly, use `http://127.0.0.1:3000/integrations/google/oauth/callback`.
+For UI-based local testing, set `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`, start the API, then open the React app's Settings page and click **Connect Gmail**. The exchanged OAuth refresh token is stored in SQLite by default (`.data/pocs.sqlite` locally, `$RAILWAY_VOLUME_MOUNT_PATH/pocs.sqlite` on Railway) and can be cleared with **Forget token**. Google redirect URIs are exact-match: if you open Vite at `http://127.0.0.1:5173`, add `http://127.0.0.1:5173/integrations/google/oauth/callback`; if you open `http://localhost:5173`, add `http://localhost:5173/integrations/google/oauth/callback`. If you connect from the API origin directly, use `http://127.0.0.1:3000/integrations/google/oauth/callback`.
 
 For Gmail MCP draft testing, enable both `gmailmcp.googleapis.com` and `gmail.googleapis.com` in the Google Cloud project. Then run:
 

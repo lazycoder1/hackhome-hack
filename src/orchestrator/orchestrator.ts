@@ -32,6 +32,7 @@ export type OrchestratorOptions = {
   email: EmailTool;
   approval: ApprovalTool;
   audit: AuditTool;
+  defaultStructuredHints?: Record<string, unknown>;
   clock?: () => Date;
   idGenerator?: () => string;
   extractionModel?: string;
@@ -44,6 +45,7 @@ export class Orchestrator {
   private readonly email: EmailTool;
   private readonly approval: ApprovalTool;
   private readonly audit: AuditTool;
+  private readonly defaultStructuredHints: Record<string, unknown>;
   private readonly clock: () => Date;
   private readonly idGenerator: () => string;
   private readonly extractionModel: string;
@@ -55,6 +57,7 @@ export class Orchestrator {
     this.email = options.email;
     this.approval = options.approval;
     this.audit = options.audit;
+    this.defaultStructuredHints = options.defaultStructuredHints ?? {};
     this.clock = options.clock ?? (() => new Date());
     this.idGenerator = options.idGenerator ?? (() => crypto.randomUUID());
     this.extractionModel = options.extractionModel ?? "deepseek-v4-pro";
@@ -297,6 +300,10 @@ export class Orchestrator {
     input: SubmitRequirementsBlobInput,
     receivedAt: string,
   ): Promise<PocRequirements> {
+    const structuredHints = mergeStructuredHints(
+      this.defaultStructuredHints,
+      input.structuredHints ?? {},
+    );
     const json = (await this.llm.completeJson({
       model: this.extractionModel,
       system: [
@@ -307,11 +314,11 @@ export class Orchestrator {
       user: JSON.stringify({
         text: input.text,
         participants: input.participants,
-        structuredHints: input.structuredHints ?? {},
+        structuredHints,
       }),
     })) as Partial<PocRequirements>;
 
-    const hintRequirements = requirementsFromStructuredHints(input.structuredHints);
+    const hintRequirements = requirementsFromStructuredHints(structuredHints);
     const primaryEmail = firstEmail(json.customer?.contacts) ?? firstEmail(input.participants);
     if (!primaryEmail) {
       throw new Error("At least one customer email is required");
@@ -347,10 +354,7 @@ export class Orchestrator {
         techStack: json.appContext?.techStack ?? hintRequirements.appContext?.techStack,
         environments: json.appContext?.environments ?? hintRequirements.appContext?.environments,
       },
-      posthogContext: {
-        ...hintRequirements.posthogContext,
-        ...json.posthogContext,
-      },
+      posthogContext: mergePosthogContext(hintRequirements.posthogContext, json.posthogContext),
       analyticsScope: {
         events: json.analyticsScope?.events?.length
           ? json.analyticsScope.events
@@ -635,6 +639,67 @@ function requirementsFromStructuredHints(
         }
       : undefined,
   };
+}
+
+function mergeStructuredHints(
+  defaults: Record<string, unknown>,
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  return deepMerge(defaults, input);
+}
+
+function deepMerge(
+  defaults: Record<string, unknown>,
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...defaults };
+  for (const [key, value] of Object.entries(input)) {
+    const existing = merged[key];
+    const existingRecord = recordField(existing);
+    const valueRecord = recordField(value);
+    if (existingRecord && valueRecord) {
+      merged[key] = deepMerge(existingRecord, valueRecord);
+      continue;
+    }
+    if (value !== undefined) {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+function mergePosthogContext(
+  hints: Partial<NonNullable<PocRequirements["posthogContext"]>> | undefined,
+  extracted: Partial<NonNullable<PocRequirements["posthogContext"]>> | undefined,
+): PocRequirements["posthogContext"] {
+  const merged = {
+    ...definedPosthogContext(hints),
+    ...definedPosthogContext(extracted),
+  };
+  return Object.keys(merged).length ? merged : undefined;
+}
+
+function definedPosthogContext(
+  value: Partial<NonNullable<PocRequirements["posthogContext"]>> | undefined,
+): Partial<NonNullable<PocRequirements["posthogContext"]>> {
+  const record = recordField(value);
+  if (!record) {
+    return {};
+  }
+  const context: Partial<NonNullable<PocRequirements["posthogContext"]>> = {};
+  const organizationId = stringField(record.organizationId);
+  const organizationName = stringField(record.organizationName);
+  const projectId = stringField(record.projectId);
+  const projectName = stringField(record.projectName);
+  const region = posthogRegion(record.region);
+  const useExistingProject = booleanField(record.useExistingProject);
+  if (organizationId) context.organizationId = organizationId;
+  if (organizationName) context.organizationName = organizationName;
+  if (projectId) context.projectId = projectId;
+  if (projectName) context.projectName = projectName;
+  if (region) context.region = region;
+  if (useExistingProject !== undefined) context.useExistingProject = useExistingProject;
+  return context;
 }
 
 function buildCustomerSummary(requirements: PocRequirements): string {

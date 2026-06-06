@@ -1,4 +1,7 @@
 import { GoogleOAuthTestService } from "../src/integrations/google-oauth-test-service.js";
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 describe("GoogleOAuthTestService", () => {
   it("builds an authorization URL and stores the exchanged token in memory", async () => {
@@ -125,6 +128,75 @@ describe("GoogleOAuthTestService", () => {
       "grant_type=refresh_token",
     );
     expect(service.accessToken()).toBe("ya29.refreshed");
+  });
+
+  it("persists and reloads the token from SQLite", async () => {
+    let now = new Date("2026-06-05T10:00:00.000Z").getTime();
+    const sqlitePath = join(mkdtempSync(join(tmpdir(), "google-oauth-")), "tokens.sqlite");
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const body = String(init?.body ?? "");
+      if (String(url).endsWith("/token") && body.includes("grant_type=authorization_code")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "ya29.sqlite",
+            refresh_token: "refresh.sqlite",
+            expires_in: 3600,
+            scope: "openid email https://www.googleapis.com/auth/gmail.readonly",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ email: "tester@example.test" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    const service = new GoogleOAuthTestService({
+      clientId: "client-123",
+      clientSecret: "secret-123",
+      tokenUrl: "https://oauth.example.test/token",
+      userinfoUrl: "https://oauth.example.test/userinfo",
+      tokenStoreMode: "sqlite",
+      tokenStorePath: "",
+      sqlitePath,
+      clock: () => new Date(now),
+      fetchImpl,
+    });
+
+    const authUrl = new URL(service.createAuthorizationUrl({ origin: "http://localhost:5173" }));
+    await service.handleCallback({ code: "code-123", state: authUrl.searchParams.get("state") });
+
+    const reloaded = new GoogleOAuthTestService({
+      clientId: "client-123",
+      clientSecret: "secret-123",
+      tokenStoreMode: "sqlite",
+      tokenStorePath: "",
+      sqlitePath,
+      clock: () => new Date(now),
+      fetchImpl,
+    });
+
+    expect(reloaded.status()).toMatchObject({
+      connected: true,
+      email: "tester@example.test",
+      storage: "sqlite",
+      memoryOnly: false,
+    });
+    expect(reloaded.accessToken()).toBe("ya29.sqlite");
+
+    now = new Date("2026-06-05T11:00:00.000Z").getTime();
+    expect(reloaded.forget()).toMatchObject({ connected: false, storage: "sqlite" });
+    const forgotten = new GoogleOAuthTestService({
+      clientId: "client-123",
+      clientSecret: "secret-123",
+      tokenStoreMode: "sqlite",
+      tokenStorePath: "",
+      sqlitePath,
+      clock: () => new Date(now),
+      fetchImpl,
+    });
+    expect(forgotten.status().connected).toBe(false);
   });
 
   it("rejects expired OAuth state and never stores a token", async () => {

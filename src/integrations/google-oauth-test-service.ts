@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { runtimeStoragePath } from "../runtime/railway-runtime.js";
 
 const DEFAULT_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -26,7 +27,7 @@ export type GoogleOAuthStatus = {
   provider: string;
   deliveryMode: "draft" | "send";
   memoryOnly: boolean;
-  storage: "memory" | "file";
+  storage: "memory" | "file" | "sqlite";
 };
 
 export type GoogleOAuthTestServiceOptions = {
@@ -39,6 +40,8 @@ export type GoogleOAuthTestServiceOptions = {
   tokenUrl?: string;
   userinfoUrl?: string;
   tokenStorePath?: string;
+  tokenStoreMode?: "memory" | "file" | "sqlite";
+  sqlitePath?: string;
   fetchImpl?: typeof fetch;
   clock?: () => Date;
   env?: NodeJS.ProcessEnv;
@@ -58,6 +61,8 @@ type StoredToken = {
   scopes: string[];
 };
 
+type TokenStoreMode = "memory" | "file" | "sqlite";
+
 type TokenResponse = {
   access_token?: string;
   refresh_token?: string;
@@ -74,7 +79,9 @@ export class GoogleOAuthTestService {
   private readonly authUrl: string;
   private readonly tokenUrl: string;
   private readonly userinfoUrl: string;
+  private readonly tokenStoreMode: TokenStoreMode;
   private readonly tokenStorePath?: string;
+  private readonly sqlitePath?: string;
   private readonly fetchImpl: typeof fetch;
   private readonly clock: () => Date;
   private readonly states = new Map<string, PendingState>();
@@ -92,14 +99,11 @@ export class GoogleOAuthTestService {
     this.authUrl = options.authUrl ?? DEFAULT_GOOGLE_AUTH_URL;
     this.tokenUrl = options.tokenUrl ?? DEFAULT_GOOGLE_TOKEN_URL;
     this.userinfoUrl = options.userinfoUrl ?? DEFAULT_GOOGLE_USERINFO_URL;
+    this.tokenStoreMode = tokenStoreModeFromOptions(options, env);
     this.tokenStorePath =
-      options.tokenStorePath ??
-      env.GOOGLE_OAUTH_TOKEN_STORE_PATH ??
-      runtimeStoragePath({
-        env,
-        filename: "google-oauth-token.json",
-        fallbackPath: ".data/google-oauth-token.json",
-      });
+      this.tokenStoreMode === "memory" ? undefined : tokenStorePathFromOptions(options, env);
+    this.sqlitePath =
+      this.tokenStoreMode === "sqlite" ? sqliteTokenStorePathFromOptions(options, env) : undefined;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.clock = options.clock ?? (() => new Date());
     this.token = this.loadToken();
@@ -115,8 +119,8 @@ export class GoogleOAuthTestService {
       scopes: this.scopes,
       provider: this.provider,
       deliveryMode: this.deliveryMode,
-      memoryOnly: !this.tokenStorePath,
-      storage: this.tokenStorePath ? "file" : "memory",
+      memoryOnly: this.tokenStoreMode === "memory",
+      storage: this.tokenStoreMode,
     };
   }
 
@@ -320,21 +324,24 @@ export class GoogleOAuthTestService {
   }
 
   private loadToken(): StoredToken | undefined {
-    if (!this.tokenStorePath) {
+    if (this.tokenStoreMode === "memory") {
       return undefined;
     }
-    try {
-      const token = JSON.parse(readFileSync(this.tokenStorePath, "utf8")) as StoredToken;
-      return token && typeof token.accessToken === "string" ? token : undefined;
-    } catch {
-      return undefined;
+    if (this.tokenStoreMode === "sqlite") {
+      return this.loadSqliteToken();
     }
+    return this.loadFileToken();
   }
 
   private saveToken(): void {
-    if (!this.tokenStorePath || !this.token) {
+    if (this.tokenStoreMode === "memory" || !this.token) {
       return;
     }
+    if (this.tokenStoreMode === "sqlite") {
+      this.saveSqliteToken(this.token);
+      return;
+    }
+    if (!this.tokenStorePath) return;
     mkdirSync(dirname(this.tokenStorePath), { recursive: true });
     writeFileSync(this.tokenStorePath, `${JSON.stringify(this.token, null, 2)}\n`, {
       mode: 0o600,
@@ -342,13 +349,94 @@ export class GoogleOAuthTestService {
   }
 
   private deleteSavedToken(): void {
-    if (!this.tokenStorePath) {
+    if (this.tokenStoreMode === "memory") {
       return;
     }
+    if (this.tokenStoreMode === "sqlite") {
+      this.deleteSqliteToken();
+      return;
+    }
+    if (!this.tokenStorePath) return;
     try {
       rmSync(this.tokenStorePath);
     } catch {
       // Token storage is best-effort test plumbing.
+    }
+  }
+
+  private loadSqliteToken(): StoredToken | undefined {
+    if (!this.sqlitePath) return undefined;
+    const db = this.openTokenDb();
+    try {
+      const row = db
+        .prepare("SELECT body FROM oauth_tokens WHERE key = ?")
+        .get("google_oauth") as { body?: unknown } | undefined;
+      if (typeof row?.body !== "string") {
+        const legacyToken = this.loadFileToken();
+        if (legacyToken) {
+          this.saveSqliteToken(legacyToken);
+        }
+        return legacyToken;
+      }
+      const token = JSON.parse(row.body) as StoredToken;
+      return token && typeof token.accessToken === "string" ? token : undefined;
+    } catch {
+      return undefined;
+    } finally {
+      db.close();
+    }
+  }
+
+  private saveSqliteToken(token: StoredToken): void {
+    if (!this.sqlitePath) return;
+    const db = this.openTokenDb();
+    try {
+      db.prepare(
+        `
+        INSERT OR REPLACE INTO oauth_tokens (key, body, updated_at)
+        VALUES (?, ?, ?)
+        `,
+      ).run("google_oauth", JSON.stringify(token), this.clock().toISOString());
+    } finally {
+      db.close();
+    }
+  }
+
+  private deleteSqliteToken(): void {
+    if (!this.sqlitePath) return;
+    const db = this.openTokenDb();
+    try {
+      db.prepare("DELETE FROM oauth_tokens WHERE key = ?").run("google_oauth");
+    } finally {
+      db.close();
+    }
+  }
+
+  private openTokenDb(): DatabaseSync {
+    if (!this.sqlitePath) {
+      throw new Error("SQLite token store path is not configured");
+    }
+    mkdirSync(dirname(this.sqlitePath), { recursive: true });
+    const db = new DatabaseSync(this.sqlitePath);
+    db.exec(`
+      PRAGMA busy_timeout = 5000;
+      PRAGMA journal_mode = WAL;
+      CREATE TABLE IF NOT EXISTS oauth_tokens (
+        key TEXT PRIMARY KEY,
+        body TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    return db;
+  }
+
+  private loadFileToken(): StoredToken | undefined {
+    if (!this.tokenStorePath) return undefined;
+    try {
+      const token = JSON.parse(readFileSync(this.tokenStorePath, "utf8")) as StoredToken;
+      return token && typeof token.accessToken === "string" ? token : undefined;
+    } catch {
+      return undefined;
     }
   }
 }
@@ -363,4 +451,48 @@ function safeReturnTo(value: string | undefined): string {
     return "/settings";
   }
   return value;
+}
+
+function tokenStoreModeFromOptions(
+  options: GoogleOAuthTestServiceOptions,
+  env: NodeJS.ProcessEnv,
+): TokenStoreMode {
+  if (options.tokenStoreMode) return options.tokenStoreMode;
+  if (options.tokenStorePath === "") return "memory";
+  const configuredMode = env.GOOGLE_OAUTH_TOKEN_STORE?.toLowerCase();
+  if (configuredMode === "memory" || configuredMode === "file" || configuredMode === "sqlite") {
+    return configuredMode;
+  }
+  if (options.tokenStorePath || env.GOOGLE_OAUTH_TOKEN_STORE_PATH) {
+    return "file";
+  }
+  return "sqlite";
+}
+
+function tokenStorePathFromOptions(
+  options: GoogleOAuthTestServiceOptions,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  if (options.tokenStorePath === "") return undefined;
+  return (
+    options.tokenStorePath ??
+    env.GOOGLE_OAUTH_TOKEN_STORE_PATH ??
+    runtimeStoragePath({
+      env,
+      filename: "google-oauth-token.json",
+      fallbackPath: ".data/google-oauth-token.json",
+    })
+  );
+}
+
+function sqliteTokenStorePathFromOptions(
+  options: GoogleOAuthTestServiceOptions,
+  env: NodeJS.ProcessEnv,
+): string {
+  return (
+    options.sqlitePath ??
+    env.GOOGLE_OAUTH_SQLITE_PATH ??
+    env.SQLITE_DB_PATH ??
+    runtimeStoragePath({ env, filename: "pocs.sqlite", fallbackPath: ".data/pocs.sqlite" })
+  );
 }

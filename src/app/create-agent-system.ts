@@ -168,6 +168,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     email,
     approval,
     audit,
+    defaultStructuredHints: defaultStructuredHintsFromEnv(env),
     clock,
     idGenerator: options.idGenerator,
   });
@@ -264,6 +265,64 @@ function operatorEmailsFromEnv(env: NodeJS.ProcessEnv): string[] {
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
   return parsed && parsed.length ? parsed : ["solutions-engineer@poc-pilot.local"];
+}
+
+function defaultStructuredHintsFromEnv(env: NodeJS.ProcessEnv): Record<string, unknown> {
+  const posthogContext: Record<string, unknown> = {};
+  if (env.POSTHOG_ORGANIZATION_ID) {
+    posthogContext.organizationId = env.POSTHOG_ORGANIZATION_ID;
+  }
+  if (env.POSTHOG_ORGANIZATION_NAME) {
+    posthogContext.organizationName = env.POSTHOG_ORGANIZATION_NAME;
+  }
+  if (env.POSTHOG_PROJECT_ID) {
+    posthogContext.projectId = env.POSTHOG_PROJECT_ID;
+    posthogContext.useExistingProject = true;
+  }
+  if (env.POSTHOG_PROJECT_NAME) {
+    posthogContext.projectName = env.POSTHOG_PROJECT_NAME;
+  }
+  if (env.POSTHOG_REGION) {
+    posthogContext.region = env.POSTHOG_REGION;
+  }
+
+  const appContext: Record<string, unknown> = {};
+  const platform = env.POSTHOG_DEFAULT_PLATFORM ?? (env.POSTHOG_PROJECT_ID ? "web" : undefined);
+  if (platform) {
+    appContext.platform = commaSeparated(platform);
+  }
+  if (env.POSTHOG_DEFAULT_APP_NAME) {
+    appContext.appName = env.POSTHOG_DEFAULT_APP_NAME;
+  }
+  if (env.POSTHOG_DEFAULT_APP_URL) {
+    appContext.appUrl = env.POSTHOG_DEFAULT_APP_URL;
+  }
+  if (env.POSTHOG_DEFAULT_ENVIRONMENTS) {
+    appContext.environments = commaSeparated(env.POSTHOG_DEFAULT_ENVIRONMENTS);
+  }
+
+  const analyticsScope: Record<string, unknown> = {};
+  if (env.POSTHOG_DEFAULT_EVENTS) {
+    analyticsScope.events = commaSeparated(env.POSTHOG_DEFAULT_EVENTS).map((name) => ({
+      name,
+      description: name,
+      required: false,
+      source: "agent_inferred",
+    }));
+  }
+
+  return {
+    ...(Object.keys(posthogContext).length ? { posthogContext } : {}),
+    ...(Object.keys(appContext).length ? { appContext } : {}),
+    ...(Object.keys(analyticsScope).length ? { analyticsScope } : {}),
+  };
+}
+
+function commaSeparated(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 function nudgeCooldownHoursFromEnv(env: NodeJS.ProcessEnv): number | undefined {

@@ -12,7 +12,7 @@ export type GoogleIntegrationStatus = {
   provider: string;
   deliveryMode: "draft" | "send";
   memoryOnly: boolean;
-  storage: "memory" | "file";
+  storage: "memory" | "file" | "sqlite";
 };
 
 export type PocLifecycleStatus =
