@@ -474,6 +474,13 @@ export class PostHogPocSetupAgent {
     projectId: string;
     knownGaps: string[];
   }): Promise<AgenticDashboardSpec | undefined> {
+    if (process.env.POSTHOG_AGENTIC_DASHBOARD !== "1") {
+      input.knownGaps.push(
+        "Agentic dashboard planning skipped; setup used deterministic approved dashboard tiles.",
+      );
+      return undefined;
+    }
+
     if (!this.llm || !this.posthog.executeSql) {
       return undefined;
     }
