@@ -74,9 +74,51 @@ export class DeepSeekClient implements LlmJsonClient {
     try {
       return JSON.parse(content);
     } catch (error) {
+      const repaired = repairJsonObject(content);
+      if (repaired) {
+        return repaired;
+      }
       throw new Error(`LLM response was not valid JSON: ${(error as Error).message}`, {
         cause: error,
       });
     }
   }
+}
+
+function repairJsonObject(content: string): unknown | undefined {
+  const candidate = extractJsonObject(content);
+  if (!candidate) {
+    return undefined;
+  }
+
+  const repairs = [
+    candidate,
+    candidate.replace(/,\s*([}\]])/g, "$1"),
+    candidate
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3'),
+  ];
+
+  for (const value of repairs) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      // Try the next repair strategy.
+    }
+  }
+  return undefined;
+}
+
+function extractJsonObject(content: string): string | undefined {
+  const withoutFence = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const start = withoutFence.indexOf("{");
+  const end = withoutFence.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
+    return undefined;
+  }
+  return withoutFence.slice(start, end + 1);
 }

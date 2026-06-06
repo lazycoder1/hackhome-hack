@@ -108,4 +108,32 @@ describe("DeepSeekClient", () => {
       }),
     ).rejects.toThrow(/LLM request timed out/);
   });
+
+  it("repairs common malformed JSON object responses", async () => {
+    const client = new DeepSeekClient({
+      apiKey: "test-key",
+      baseUrl: "https://api.deepseek.com",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: "```json\n{ok: true, nested: {value: 1,},}\n```",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+
+    await expect(
+      client.completeJson({
+        model: "deepseek-v4-flash",
+        system: "Return JSON.",
+        user: "Return JSON.",
+      }),
+    ).resolves.toEqual({ ok: true, nested: { value: 1 } });
+  });
 });
