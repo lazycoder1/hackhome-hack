@@ -481,6 +481,20 @@ describe("PostHogPocSetupAgent", () => {
               },
             },
             {
+              title: "Daily widget sessions",
+              description: "Shows session volume over time.",
+              validationSql:
+                "SELECT toDate(timestamp) AS day, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY day ORDER BY day",
+              insightQuery: {
+                kind: "DataVisualizationNode",
+                source: {
+                  kind: "HogQLQuery",
+                  query:
+                    "SELECT toDate(timestamp) AS day, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY day ORDER BY day",
+                },
+              },
+            },
+            {
               title: "Bad generated metric",
               validationSql: "SELECT bad_metric FROM events",
               insightQuery: {
@@ -522,10 +536,24 @@ describe("PostHogPocSetupAgent", () => {
     expect(calls).toContain("llm:deepseek-v4-flash");
     expect(calls).toContain("createDashboard:Widget PM Adoption");
     expect(calls).toContain("createInsight:poc_123: Sessions by landing page");
+    expect(calls).toContain("createInsight:poc_123: Daily widget sessions");
     expect(calls).not.toContain("createInsight:poc_123: Bad generated metric");
     expect(insightQueries).toEqual([
       expect.objectContaining({
         kind: "DataVisualizationNode",
+        display: "ActionsBar",
+        chartSettings: expect.objectContaining({
+          xAxis: { column: "url" },
+          yAxis: [{ column: "sessions" }],
+        }),
+      }),
+      expect.objectContaining({
+        kind: "DataVisualizationNode",
+        display: "ActionsLineGraph",
+        chartSettings: expect.objectContaining({
+          xAxis: { column: "day" },
+          yAxis: [{ column: "sessions" }],
+        }),
       }),
     ]);
     expect(result.skippedResources).toContainEqual(

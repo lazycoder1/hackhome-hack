@@ -499,6 +499,8 @@ export class PostHogPocSetupAgent {
           "The plan is already approved, so do not block setup on business clarification unless no useful dashboard can be created at all.",
           "When a business definition is uncertain, make the best defensible assumption, include it in notes, and still create dashboard tiles.",
           "Create graph/chart/table tiles that a PM can read directly. Prefer 4 to 8 useful tiles over generic event-count cards.",
+          "For every DataVisualizationNode tile, set display explicitly: ActionsLineGraph for day/week/month time series, ActionsBar for page/org/campaign/channel rankings, and ActionsTable only for watchlists or raw detail tables.",
+          "For chart tiles, include chartSettings with an xAxis column and yAxis column(s) that match the SQL aliases.",
           "Set clarificationRequired false whenever you can create at least one meaningful dashboard tile from the plan and evidence.",
           "Do not ask technical questions about SQL, MCP, schemas, implementation, or dashboard widget types.",
           "Choose a distinct dashboardName that can coexist with earlier generic or synthetic setup dashboards. Make the name PM/business-oriented and include the PoC id suffix when useful.",
@@ -536,6 +538,11 @@ export class PostHogPocSetupAgent {
                 validationSql: "SELECT ...",
                 insightQuery: {
                   kind: "DataVisualizationNode",
+                  display: "ActionsLineGraph | ActionsBar | ActionsTable",
+                  chartSettings: {
+                    xAxis: { column: "day" },
+                    yAxis: [{ column: "sessions" }],
+                  },
                   source: { kind: "HogQLQuery", query: "same or equivalent SQL" },
                 },
               },
@@ -679,8 +686,175 @@ function agenticTileForCreation(tile: AgenticDashboardTile): DashboardTileForCre
     title: tile.title,
     type: "other",
     sourceEvents: [],
-    insightQuery: tile.insightQuery,
+    insightQuery: chartedInsightQuery(tile),
   };
+}
+
+function chartedInsightQuery(tile: AgenticDashboardTile): Record<string, unknown> {
+  const query = tile.insightQuery;
+  if (query.kind !== "DataVisualizationNode") {
+    return query;
+  }
+
+  const source = query.source;
+  if (!isRecord(source) || source.kind !== "HogQLQuery") {
+    return query;
+  }
+
+  const explicitDisplay = typeof query.display === "string" ? query.display : undefined;
+  if (explicitDisplay && explicitDisplay !== "Auto") {
+    return query;
+  }
+
+  const hogql = typeof source.query === "string" ? source.query : tile.validationSql;
+  const columns = inferSelectedColumns(hogql);
+  const xAxis = chooseXAxis(columns);
+  const yAxis = chooseYAxis(columns, xAxis?.name);
+  const display = xAxis?.kind === "time" ? "ActionsLineGraph" : "ActionsBar";
+  const existingChartSettings = isRecord(query.chartSettings) ? query.chartSettings : {};
+  const chartSettings: Record<string, unknown> = {
+    ...existingChartSettings,
+  };
+
+  if (xAxis && !isRecord(chartSettings.xAxis)) {
+    chartSettings.xAxis = { column: xAxis.name };
+  }
+  if (yAxis && !Array.isArray(chartSettings.yAxis)) {
+    chartSettings.yAxis = [{ column: yAxis.name }];
+  }
+  if (!("showLegend" in chartSettings)) {
+    chartSettings.showLegend = true;
+  }
+  if (display !== "ActionsLineGraph" && !("showValuesOnSeries" in chartSettings)) {
+    chartSettings.showValuesOnSeries = true;
+  }
+  if (!isRecord(chartSettings.leftYAxisSettings)) {
+    chartSettings.leftYAxisSettings = { startAtZero: true };
+  }
+
+  return {
+    ...query,
+    display,
+    chartSettings,
+  };
+}
+
+type InferredColumn = {
+  name: string;
+  expression: string;
+  kind: "time" | "metric" | "dimension";
+};
+
+function inferSelectedColumns(sql: string): InferredColumn[] {
+  const selectMatch = /\bselect\b([\s\S]+?)\bfrom\b/i.exec(sql);
+  if (!selectMatch) {
+    return [];
+  }
+
+  return splitTopLevel(selectMatch[1])
+    .map((expression) => expression.trim())
+    .map((expression) => {
+      const alias = aliasFromExpression(expression);
+      if (!alias) {
+        return undefined;
+      }
+      return {
+        name: alias,
+        expression,
+        kind: inferColumnKind(alias, expression),
+      };
+    })
+    .filter((column): column is InferredColumn => Boolean(column));
+}
+
+function splitTopLevel(value: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: "'" | '"' | "`" | undefined;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quote) {
+      if (character === quote && value[index - 1] !== "\\") {
+        quote = undefined;
+      }
+      continue;
+    }
+    if (character === "'" || character === '"' || character === "`") {
+      quote = character;
+      continue;
+    }
+    if (character === "(") {
+      depth += 1;
+      continue;
+    }
+    if (character === ")") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (character === "," && depth === 0) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  parts.push(value.slice(start));
+  return parts;
+}
+
+function aliasFromExpression(expression: string): string | undefined {
+  const asAlias = /\s+as\s+["`]?([A-Za-z_][A-Za-z0-9_$]*)["`]?\s*$/i.exec(expression);
+  if (asAlias) {
+    return asAlias[1];
+  }
+
+  const bareAlias = /\s+["`]?([A-Za-z_][A-Za-z0-9_$]*)["`]?\s*$/.exec(expression);
+  if (!bareAlias) {
+    return undefined;
+  }
+  const alias = bareAlias[1];
+  if (/^(and|by|desc|from|group|limit|order|select|where)$/i.test(alias)) {
+    return undefined;
+  }
+  return alias;
+}
+
+function inferColumnKind(name: string, expression: string): InferredColumn["kind"] {
+  const value = `${name} ${expression}`.toLowerCase();
+  if (
+    /\b(day|date|week|month|hour|time|timestamp)\b/.test(value) ||
+    /\b(to(date|startof|startofinterval)|date_trunc)\b/.test(value)
+  ) {
+    return "time";
+  }
+  if (
+    /\b(count|uniq|sum|avg|median|min|max|rate|ratio|percent|conversion|users|sessions|views|requests|captures|interactions|events|total)\b/.test(
+      value,
+    )
+  ) {
+    return "metric";
+  }
+  return "dimension";
+}
+
+function chooseXAxis(columns: InferredColumn[]): InferredColumn | undefined {
+  return (
+    columns.find((column) => column.kind === "time") ??
+    columns.find((column) => column.kind === "dimension") ??
+    columns[0]
+  );
+}
+
+function chooseYAxis(
+  columns: InferredColumn[],
+  xAxisName: string | undefined,
+): InferredColumn | undefined {
+  return (
+    columns.find((column) => column.name !== xAxisName && column.kind === "metric") ??
+    columns.find((column) => column.name !== xAxisName) ??
+    columns[1]
+  );
 }
 
 function normalizeAgenticDashboardSpec(value: unknown): AgenticDashboardSpec | undefined {
