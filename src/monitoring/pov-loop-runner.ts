@@ -40,6 +40,8 @@ export type TickResult = {
 
 /** Lifecycle statuses the always-on loop should tick (post-handoff, being evaluated). */
 export const MONITORABLE_STATUSES: PocLifecycleStatus[] = [
+  "handoff_sent",
+  "handoff_sent_with_gaps",
   "active_poc",
   "monitoring_running",
   "monitoring_at_risk",

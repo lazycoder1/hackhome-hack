@@ -48,7 +48,9 @@ export function createHttpApiServer(options: HttpApiServerOptions): Server {
         sendJson(response, error.status, error.body);
         return;
       }
-      console.error(`[http] ${request.method ?? "GET"} ${request.url ?? "/"} failed: ${(error as Error).message}`);
+      console.error(
+        `[http] ${request.method ?? "GET"} ${request.url ?? "/"} failed: ${(error as Error).message}`,
+      );
       sendJson(response, 500, {
         error: "internal_error",
         message: (error as Error).message,
