@@ -174,7 +174,10 @@ export class Orchestrator {
       throw new Error(`Unknown PoC: ${input.pocId}`);
     }
 
-    const classification = await this.classifyCustomerReply(input.pocId, input.message);
+    const classification = this.normalizeCustomerReplyClassification(
+      await this.classifyCustomerReply(input.pocId, input.message),
+      input.message.textBody,
+    );
     const changes = classification.extractedChanges ?? [];
 
     await this.audit.writeAuditLog({
@@ -311,6 +314,26 @@ export class Orchestrator {
       planVersion: plan.version,
       approvalTokenId: updatedPoc?.approvalTokenId ?? "",
       approvalUrl: updatedPoc?.approvalUrl ?? "",
+    };
+  }
+
+  private normalizeCustomerReplyClassification(
+    classification: CustomerReplyClassification,
+    textBody: string,
+  ): CustomerReplyClassification {
+    const inferredChanges = inferDashboardPresentationChanges(textBody);
+    if (
+      inferredChanges.length === 0 ||
+      (classification.intent !== "question" && classification.intent !== "unclear")
+    ) {
+      return classification;
+    }
+
+    return {
+      ...classification,
+      intent: "needs_changes",
+      extractedChanges:
+        classification.extractedChanges.length === 0 ? inferredChanges : classification.extractedChanges,
     };
   }
 
@@ -913,6 +936,40 @@ function requestedRegion(changes: string[]): "US" | "EU" | undefined {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function inferDashboardPresentationChanges(textBody: string): string[] {
+  const text = textBody.toLowerCase();
+  if (!text.length) {
+    return [];
+  }
+
+  const hasDashboardContext = /(dashboard|report|handoff|view|chart|charts|graph|graphs|visual|visuals|metric|metrics|number|numbers|tile|tiles|gauge|card|cards)/.test(
+    text,
+  );
+  if (!hasDashboardContext) {
+    return [];
+  }
+
+  if (/too many\s+(numbers?|metrics?|kpis?|cards?)/.test(text)) {
+    return [
+      "Please reduce numeric-heavy dashboard tiles and focus on fewer, more readable chart-based views.",
+    ];
+  }
+
+  if (/not enough\s+(graphs?|charts?|visuals?)/.test(text)) {
+    return [
+      "Please make the dashboard easier to read by adding more graph/chart-based visualizations and fewer numeric summaries.",
+    ];
+  }
+
+  if (/hard to understand|too hard to|hardly understand|unclear/.test(text)) {
+    return [
+      "Please simplify the dashboard so outcomes are easier to understand, with more explanation-driven visuals.",
+    ];
+  }
+
+  return [];
 }
 
 function recordField(value: unknown): Record<string, unknown> | undefined {

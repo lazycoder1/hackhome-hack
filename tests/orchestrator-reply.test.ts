@@ -190,6 +190,44 @@ describe("Orchestrator reply handling", () => {
       threadId: "thread-1",
     });
   });
+
+  it("treats dashboard readability complaints as a change request after approval", async () => {
+    const sentEmails: unknown[] = [];
+    const { orchestrator } = systemWithReplyClassifier({
+      intent: "question",
+      sentEmails,
+    });
+    await orchestrator.submitRequirementsBlob(requirementsBlob());
+
+    const result = await orchestrator.processCustomerReply({
+      pocId: "poc_123",
+      message: {
+        id: "inbound-1",
+        threadId: "thread-1",
+        from: "buyer@acme.test",
+        to: ["poc@example.test"],
+        subject: "Re: Please confirm your PostHog PoC plan",
+        textBody:
+          "I just looked at dashboard. Too many numbers, not enough graphs. it's hard to understand. Does your platform not allow it?",
+        receivedAt: "2026-06-04T00:05:00.000Z",
+      },
+    });
+
+    expect(result).toEqual({
+      intent: "needs_changes",
+      completedApproval: false,
+      requiresSetup: false,
+      changes: [
+        "Please reduce numeric-heavy dashboard tiles and focus on fewer, more readable chart-based views.",
+      ],
+    });
+
+    expect(sentEmails).toHaveLength(2);
+    expect(sentEmails[1]).toMatchObject({
+      threadId: "thread-1",
+      subject: "Please confirm your updated PostHog PoC plan",
+    });
+  });
 });
 
 function systemWithReplyClassifier(options: {

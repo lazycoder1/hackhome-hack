@@ -245,6 +245,105 @@ describe("GmailInboxMonitor", () => {
     ]);
   });
 
+  it("processes customer feedback replies after the PoC has been approved", async () => {
+    const processed: unknown[] = [];
+    const monitor = new GmailInboxMonitor({
+      gateway: {
+        async createDraft() {
+          return { id: "draft_123" };
+        },
+        async searchThreads() {
+          return {
+            threads: [{ id: "thread_confirm_vgs", messages: [] }],
+          };
+        },
+        async getThread() {
+          return {
+            id: "thread_confirm_vgs",
+            messages: [
+              {
+                id: "msg_vgs_feedback",
+                threadId: "thread_confirm_vgs",
+                from: "VGS <vgs@getconvinced.ai>",
+                toRecipients: ["ggs@getconvinced.ai"],
+                subject: "Re: Please confirm your PostHog PoC plan",
+                plaintextBody:
+                  "I just looked at dashboard. Too many numbers, not enough graphs. Hard to understand.",
+                date: "2026-06-05T12:00:00Z",
+              },
+            ],
+          };
+        },
+      },
+      workflow: {
+        async processEmailReply(input) {
+          processed.push(input);
+          return {
+            intent: "needs_changes",
+            completedApproval: false,
+            requiresSetup: false,
+            changes: ["Please make the dashboard more graph-heavy."],
+          };
+        },
+      },
+      pocStatus: {
+        async list() {
+          return {
+            pocs: [
+              {
+                pocId: "poc_convinced_widget",
+                status: "approved",
+                createdAt: "2026-06-05T11:55:00Z",
+                updatedAt: "2026-06-05T11:55:00Z",
+                confirmationThreadId: "thread_confirm_vgs",
+                hasRequirements: true,
+                hasActivePlan: true,
+                hasSetupResult: true,
+              },
+            ],
+          };
+        },
+        async detail() {
+          return {
+            pocId: "poc_convinced_widget",
+            status: "approved",
+            createdAt: "2026-06-05T11:55:00Z",
+            updatedAt: "2026-06-05T11:55:00Z",
+            hasRequirements: true,
+            hasActivePlan: true,
+            hasSetupResult: true,
+            requirements: {
+              pocId: "poc_convinced_widget",
+              product: "posthog",
+              customer: {
+                companyName: "Convinced",
+                companySlug: "convinced",
+                contacts: [{ email: "vgs@getconvinced.ai", isPrimary: true }],
+              },
+              businessGoal: "Measure chat widget usage by landing page.",
+              successCriteria: ["Acceptance reply from VGS approves the PoC."],
+              appContext: { platform: ["web"] },
+              analyticsScope: { events: [] },
+              assumptions: [],
+              openQuestions: [],
+              source: {
+                sourceKind: "api",
+                receivedAt: "2026-06-05T11:55:00Z",
+              },
+            },
+          };
+        },
+      },
+    });
+
+    await expect(monitor.monitor({})).resolves.toMatchObject({
+      searchedThreads: 1,
+      processedMessages: 1,
+      skippedMessages: 0,
+    });
+    expect(processed).toHaveLength(1);
+  });
+
   it("skips confirmation-thread replies when the PoC has no active plan", async () => {
     const monitor = new GmailInboxMonitor({
       gateway: {
