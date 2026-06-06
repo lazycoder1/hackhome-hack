@@ -11,7 +11,7 @@ import {
   ValidationBadge,
 } from "../components/ui";
 import { Story } from "../components/Story";
-import { LIFECYCLE_ORDER, STATUS_META, phaseOf, statusValidationTone, timeAgo } from "../lifecycle";
+import { LIFECYCLE_ORDER, STATUS_META, isAwaitingApproval, phaseOf, statusValidationTone, timeAgo } from "../lifecycle";
 import { usePoc } from "../hooks";
 import type {
   PocPlan,
@@ -79,7 +79,7 @@ export function PocDetailPage() {
         right={
           <div className="flex flex-wrap items-center gap-2">
             <Link to="/" className="btn">← Pipeline</Link>
-            {poc.status === "confirmation_sent" && poc.approvalUrl && (
+            {isAwaitingApproval(poc.status) && poc.approvalUrl && (
               <Story id="US-O9" side="bottom">
                 <a className="btn btn-grass" href={poc.approvalUrl} target="_blank" rel="noreferrer">
                   Open approval page

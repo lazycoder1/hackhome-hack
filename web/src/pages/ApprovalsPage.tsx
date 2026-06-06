@@ -3,11 +3,11 @@ import { PageHeader } from "../components/AppShell";
 import { EmptyState, Section, Spinner, StatusPill } from "../components/ui";
 import { Story } from "../components/Story";
 import { usePocs } from "../hooks";
-import { timeAgo } from "../lifecycle";
+import { isAwaitingApproval, timeAgo } from "../lifecycle";
 
 export function ApprovalsPage() {
   const { pocs } = usePocs();
-  const awaiting = (pocs ?? []).filter((p) => p.status === "confirmation_sent");
+  const awaiting = (pocs ?? []).filter((p) => isAwaitingApproval(p.status));
   const review = (pocs ?? []).filter((p) => p.status === "needs_human_review");
 
   return (

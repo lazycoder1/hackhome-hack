@@ -29,11 +29,15 @@ export type PocLifecycleStatus =
   | "handoff_sent"
   | "handoff_sent_with_gaps"
   | "active_poc"
+  | "monitoring_running"
+  | "monitoring_at_risk"
+  | "monitoring_criteria_met"
   | "needs_human_review"
   | "failed"
   | "completed"
   | "teardown_queued"
-  | "teardown_complete";
+  | "teardown_complete"
+  | "sent_for_confirmation";
 
 export type CustomerContact = {
   name?: string;

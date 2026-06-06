@@ -24,7 +24,7 @@ export const PHASES: PhaseMeta[] = [
     label: "Confirmation",
     blurb: "Plan sent — awaiting customer sign-off",
     accent: "var(--color-gold)",
-    statuses: ["confirmation_sent", "approved", "rejected"],
+    statuses: ["confirmation_sent", "sent_for_confirmation", "approved", "rejected"],
   },
   {
     id: "setup",
@@ -54,6 +54,9 @@ export const PHASES: PhaseMeta[] = [
     accent: "var(--color-grass)",
     statuses: [
       "active_poc",
+      "monitoring_running",
+      "monitoring_at_risk",
+      "monitoring_criteria_met",
       "completed",
       "failed",
       "teardown_queued",
@@ -70,8 +73,12 @@ export const PHASE_BY_STATUS: Record<PocLifecycleStatus, PhaseId> = PHASES.reduc
   {} as Record<PocLifecycleStatus, PhaseId>,
 );
 
-export function phaseOf(status: PocLifecycleStatus): PhaseMeta {
-  const id = PHASE_BY_STATUS[status];
+export function phaseIdForStatus(status: string): PhaseId {
+  return PHASE_BY_STATUS[status as PocLifecycleStatus] ?? "intake";
+}
+
+export function phaseOf(status: string): PhaseMeta {
+  const id = phaseIdForStatus(status);
   return PHASES.find((p) => p.id === id) ?? PHASES[0];
 }
 
@@ -96,11 +103,29 @@ export const STATUS_META: Record<PocLifecycleStatus, StatusStyle> = {
   handoff_sent: { label: "Handoff sent", color: "var(--color-grass)", fg: "#fff" },
   handoff_sent_with_gaps: { label: "Sent with gaps", color: "var(--color-warn)", fg: "#3d2c00" },
   active_poc: { label: "Active PoC", color: "var(--color-grass)", fg: "#fff" },
+  monitoring_running: { label: "Monitoring", color: "var(--color-brand)", fg: "#fff" },
+  monitoring_at_risk: { label: "At risk", color: "var(--color-flame)", fg: "#fff" },
+  monitoring_criteria_met: { label: "Criteria met", color: "var(--color-grass)", fg: "#fff" },
   failed: { label: "Failed", color: "var(--color-fail)", fg: "#fff" },
   completed: { label: "Completed", color: "var(--color-ink)", fg: "#fff" },
   teardown_queued: { label: "Teardown queued", color: "var(--color-muted)", fg: "#fff" },
   teardown_complete: { label: "Torn down", color: "var(--color-muted)", fg: "#fff" },
+  sent_for_confirmation: { label: "Awaiting approval", color: "var(--color-gold)", fg: "#3d2c00" },
 };
+
+export function statusMetaFor(status: string): StatusStyle {
+  return (
+    STATUS_META[status as PocLifecycleStatus] ?? {
+      label: status.replaceAll("_", " "),
+      color: "var(--color-muted)",
+      fg: "#fff",
+    }
+  );
+}
+
+export function isAwaitingApproval(status: string): boolean {
+  return status === "confirmation_sent" || status === "sent_for_confirmation";
+}
 
 // Ordered lifecycle for the detail-page stepper (the happy path).
 export const LIFECYCLE_ORDER: PocLifecycleStatus[] = [

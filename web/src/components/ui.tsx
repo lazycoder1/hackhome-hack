@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import type { PocLifecycleStatus } from "../types";
-import { STATUS_META, statusValidationTone } from "../lifecycle";
+import { statusMetaFor, statusValidationTone } from "../lifecycle";
 
 export function Logo({ size = 28 }: { size?: number }) {
   return (
@@ -17,8 +16,8 @@ export function Logo({ size = 28 }: { size?: number }) {
   );
 }
 
-export function StatusPill({ status }: { status: PocLifecycleStatus }) {
-  const meta = STATUS_META[status];
+export function StatusPill({ status }: { status: string }) {
+  const meta = statusMetaFor(status);
   return (
     <span
       className="chip"

@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { PageHeader } from "../components/AppShell";
 import { Dot, Spinner, StatusPill, ValidationBadge } from "../components/ui";
 import { Story } from "../components/Story";
-import { PHASES, PHASE_BY_STATUS, timeAgo } from "../lifecycle";
+import { PHASES, isAwaitingApproval, phaseIdForStatus, timeAgo } from "../lifecycle";
 import type { PhaseId } from "../lifecycle";
 import { usePocs } from "../hooks";
 import type { PocStatusSummary } from "../types";
@@ -23,12 +23,12 @@ export function BoardPage() {
       handoff: [],
       live: [],
     };
-    for (const p of pocs ?? []) map[PHASE_BY_STATUS[p.status]].push(p);
+    for (const p of pocs ?? []) map[phaseIdForStatus(p.status)].push(p);
     return map;
   }, [pocs]);
 
   const total = pocs?.length ?? 0;
-  const awaiting = byPhase.confirm.filter((p) => p.status === "confirmation_sent").length;
+  const awaiting = byPhase.confirm.filter((p) => isAwaitingApproval(p.status)).length;
   const inFlight = byPhase.setup.length + byPhase.validate.length;
   const needsReview = (pocs ?? []).filter((p) => p.status === "needs_human_review").length;
 
