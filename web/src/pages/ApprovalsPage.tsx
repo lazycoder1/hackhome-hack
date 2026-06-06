@@ -3,11 +3,11 @@ import { PageHeader } from "../components/AppShell";
 import { EmptyState, Section, Spinner, StatusPill } from "../components/ui";
 import { Story } from "../components/Story";
 import { usePocs } from "../hooks";
-import { isAwaitingApproval, timeAgo } from "../lifecycle";
+import { timeAgo } from "../lifecycle";
 
 export function ApprovalsPage() {
   const { pocs } = usePocs();
-  const awaiting = (pocs ?? []).filter((p) => isAwaitingApproval(p.status));
+  const awaiting = (pocs ?? []).filter((p) => p.status === "confirmation_sent");
   const review = (pocs ?? []).filter((p) => p.status === "needs_human_review");
 
   return (
@@ -27,7 +27,10 @@ export function ApprovalsPage() {
           {pocs === null ? (
             <Spinner label="Loading…" />
           ) : awaiting.length === 0 ? (
-            <EmptyState title="Nothing waiting on a customer" hint="Plans you send for confirmation appear here." />
+            <EmptyState
+              title="Nothing waiting on a customer"
+              hint="Plans you send for confirmation appear here."
+            />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {awaiting.map((p) => (
@@ -42,11 +45,18 @@ export function ApprovalsPage() {
                       View
                     </Link>
                     {p.approvalUrl && (
-                      <a className="btn btn-sm btn-grass" href={p.approvalUrl} target="_blank" rel="noreferrer">
+                      <a
+                        className="btn btn-sm btn-grass"
+                        href={p.approvalUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         Approval page ↗
                       </a>
                     )}
-                    <span className="ml-auto text-xs text-[var(--color-muted)]">{timeAgo(p.updatedAt)}</span>
+                    <span className="ml-auto text-xs text-[var(--color-muted)]">
+                      {timeAgo(p.updatedAt)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -62,7 +72,10 @@ export function ApprovalsPage() {
           }
         >
           {review.length === 0 ? (
-            <EmptyState title="No escalations" hint="Validation failures that block handoff land here." />
+            <EmptyState
+              title="No escalations"
+              hint="Validation failures that block handoff land here."
+            />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {review.map((p) => (
@@ -76,7 +89,9 @@ export function ApprovalsPage() {
                     <StatusPill status={p.status} />
                   </div>
                   <p className="line-clamp-2 text-sm text-[var(--color-ink-soft)]">{p.objective}</p>
-                  <span className="text-xs font-semibold text-[var(--color-flame)]">Review validation →</span>
+                  <span className="text-xs font-semibold text-[var(--color-flame)]">
+                    Review validation →
+                  </span>
                 </Link>
               ))}
             </div>

@@ -1,8 +1,7 @@
 import { task, wait } from "@trigger.dev/sdk";
-import { createAgentSystem } from "../src/app/create-agent-system.js";
+import { createInboxGateway, createTriggerSystem } from "../src/app/create-trigger-system.js";
 import type { SubmitRequirementsBlobInput } from "../src/orchestrator/orchestrator.js";
 import { PocStatusReader } from "../src/status/poc-status-reader.js";
-import { GmailRemoteMcpGateway } from "../src/tools/gmail-remote-mcp-gateway.js";
 import { GmailInboxMonitor } from "../src/workflow/gmail-inbox-monitor.js";
 
 type ApprovalDecision = {
@@ -42,9 +41,7 @@ type MonitorGmailInboxPayload = {
 export const setupApprovedPosthogPocTask = task({
   id: "setup-approved-posthog-poc",
   run: async (payload: SetupApprovedPayload) => {
-    const system = createAgentSystem({
-      approvalMode: "trigger",
-    });
+    const { system } = createTriggerSystem();
 
     return await system.workflow.approveAndRunSetup(payload);
   },
@@ -64,9 +61,7 @@ export const processPosthogPocEmailReplyTask = task({
       receivedAt: string;
     };
   }) => {
-    const system = createAgentSystem({
-      approvalMode: "trigger",
-    });
+    const { system } = createTriggerSystem();
 
     return await system.workflow.processEmailReply(payload);
   },
@@ -75,9 +70,7 @@ export const processPosthogPocEmailReplyTask = task({
 export const monitorActivePosthogPocTask = task({
   id: "monitor-active-posthog-poc",
   run: async (payload: MonitorActivePocPayload) => {
-    const system = createAgentSystem({
-      approvalMode: "trigger",
-    });
+    const { system } = createTriggerSystem();
 
     return await system.workflow.monitorActivePoc(payload);
   },
@@ -86,9 +79,7 @@ export const monitorActivePosthogPocTask = task({
 export const retryPosthogPocStageTask = task({
   id: "retry-posthog-poc-stage",
   run: async (payload: RetryPocStagePayload) => {
-    const system = createAgentSystem({
-      approvalMode: "trigger",
-    });
+    const { system } = createTriggerSystem();
 
     return await system.workflow.retryPocStage(payload);
   },
@@ -97,11 +88,9 @@ export const retryPosthogPocStageTask = task({
 export const monitorGmailInboxTask = task({
   id: "monitor-gmail-inbox",
   run: async (payload: MonitorGmailInboxPayload = {}) => {
-    const system = createAgentSystem({
-      approvalMode: "trigger",
-    });
+    const { system, gmailToken } = createTriggerSystem();
     const monitor = new GmailInboxMonitor({
-      gateway: new GmailRemoteMcpGateway(),
+      gateway: createInboxGateway(gmailToken),
       workflow: system.workflow,
       pocStatus: new PocStatusReader(system.store),
     });
@@ -118,9 +107,7 @@ export const monitorGmailInboxTask = task({
 export const posthogPocWorkflowTask = task({
   id: "posthog-poc-workflow",
   run: async (payload: SubmitRequirementsBlobInput) => {
-    const system = createAgentSystem({
-      approvalMode: "trigger",
-    });
+    const { system } = createTriggerSystem();
 
     const intake = await system.orchestrator.submitRequirementsBlob(payload);
     if (intake.status === "needs_clarification" || !intake.approvalTokenId) {

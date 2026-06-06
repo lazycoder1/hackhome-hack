@@ -204,19 +204,14 @@ export type PostHogToolGateway = {
     projectId: string;
     dashboardId: string;
     name: string;
+    description?: string;
     type: string;
     sourceEvents?: string[];
     query?: Record<string, unknown>;
     tags?: string[];
   }): Promise<PosthogResourceRef>;
-  readDataSchema?(input: {
-    projectId: string;
-    query?: Record<string, unknown>;
-  }): Promise<unknown>;
-  executeSql?(input: {
-    projectId: string;
-    query: string;
-  }): Promise<unknown>;
+  readDataSchema?(input: { projectId: string; query?: Record<string, unknown> }): Promise<unknown>;
+  executeSql?(input: { projectId: string; query: string }): Promise<unknown>;
   createCohort?(input: {
     projectId: string;
     name: string;

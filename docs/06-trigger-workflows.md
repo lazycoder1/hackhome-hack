@@ -154,6 +154,8 @@ Configuration:
 
 Note: official Gmail MCP currently creates drafts for outbound mail with `create_draft`; it does not expose a direct send-email tool. Use `EMAIL_MODE=gmail_api` when the PoC should send directly through Gmail REST `users.messages.send`, or `EMAIL_MODE=gmail_mcp` when a human should review/send drafts from Gmail.
 
+Caveat (verified 2026-06-06): the hosted Gmail MCP at `gmailmcp.googleapis.com` is **Google Workspace-gated**. A consumer `@gmail.com` account can authenticate and `tools/list`, but `create_draft`/`search_threads` return "caller does not have permission" regardless of IAM or `x-goog-user-project`. The same OAuth token succeeds against the plain Gmail REST API, so `EMAIL_MODE=gmail_api` is required for personal Google accounts — both for sending (`GmailApiEmailTool`) and inbox reading (`GmailApiInboxGateway`, auto-selected by the trigger worker in `gmail_api` mode). Reserve `gmail_mcp` for Workspace accounts.
+
 ### `monitor-active-posthog-poc`
 
 Scheduled task for PoCs in `active_poc`, `handoff_sent`, or `handoff_sent_with_gaps`.

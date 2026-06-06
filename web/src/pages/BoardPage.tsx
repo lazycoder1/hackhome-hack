@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { PageHeader } from "../components/AppShell";
 import { Dot, Spinner, StatusPill, ValidationBadge } from "../components/ui";
 import { Story } from "../components/Story";
-import { PHASES, isAwaitingApproval, phaseIdForStatus, timeAgo } from "../lifecycle";
+import { PHASES, PHASE_BY_STATUS, timeAgo } from "../lifecycle";
 import type { PhaseId } from "../lifecycle";
 import { usePocs } from "../hooks";
 import type { PocStatusSummary } from "../types";
@@ -23,12 +23,12 @@ export function BoardPage() {
       handoff: [],
       live: [],
     };
-    for (const p of pocs ?? []) map[phaseIdForStatus(p.status)].push(p);
+    for (const p of pocs ?? []) map[PHASE_BY_STATUS[p.status]].push(p);
     return map;
   }, [pocs]);
 
   const total = pocs?.length ?? 0;
-  const awaiting = byPhase.confirm.filter((p) => isAwaitingApproval(p.status)).length;
+  const awaiting = byPhase.confirm.filter((p) => p.status === "confirmation_sent").length;
   const inFlight = byPhase.setup.length + byPhase.validate.length;
   const needsReview = (pocs ?? []).filter((p) => p.status === "needs_human_review").length;
 
@@ -57,8 +57,20 @@ export function BoardPage() {
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label="Total PoCs" value={total} story="US-O2" />
           <Stat label="Awaiting approval" value={awaiting} tone="var(--color-gold)" story="US-O8" />
-          <Stat label="In flight" value={inFlight} tone="var(--color-brand)" live={inFlight > 0} story="US-O3" />
-          <Stat label="Needs review" value={needsReview} tone="var(--color-flame)" live={needsReview > 0} story="US-O10" />
+          <Stat
+            label="In flight"
+            value={inFlight}
+            tone="var(--color-brand)"
+            live={inFlight > 0}
+            story="US-O3"
+          />
+          <Stat
+            label="Needs review"
+            value={needsReview}
+            tone="var(--color-flame)"
+            live={needsReview > 0}
+            story="US-O10"
+          />
         </div>
 
         {error && (
@@ -130,7 +142,10 @@ function Stat({
 }) {
   return (
     <div className="pop flex items-center gap-3 px-4 py-3">
-      <span className="grid h-9 w-9 place-items-center rounded-[8px] border-2 border-[var(--color-line)]" style={{ background: tone, color: "#fff" }}>
+      <span
+        className="grid h-9 w-9 place-items-center rounded-[8px] border-2 border-[var(--color-line)]"
+        style={{ background: tone, color: "#fff" }}
+      >
         {live ? <Dot color="#fff" live /> : <span className="text-sm font-black">{value}</span>}
       </span>
       <div className="min-w-0">
@@ -155,8 +170,12 @@ function PocCard({ poc, flash, live }: { poc: PocStatusSummary; flash: boolean; 
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-extrabold">{poc.customerCompany ?? "Unknown company"}</div>
-          <div className="mono mt-0.5 truncate text-[0.68rem] text-[var(--color-muted)]">{poc.pocId}</div>
+          <div className="truncate text-sm font-extrabold">
+            {poc.customerCompany ?? "Unknown company"}
+          </div>
+          <div className="mono mt-0.5 truncate text-[0.68rem] text-[var(--color-muted)]">
+            {poc.pocId}
+          </div>
         </div>
         {live && <Dot color="var(--color-brand)" live />}
       </div>

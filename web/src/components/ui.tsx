@@ -1,11 +1,21 @@
 import type { ReactNode } from "react";
-import { statusMetaFor, statusValidationTone } from "../lifecycle";
+import type { PocLifecycleStatus } from "../types";
+import { STATUS_META, statusValidationTone } from "../lifecycle";
 
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <span className="inline-flex items-center gap-2">
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
-        <rect x="3" y="3" width="58" height="58" rx="14" fill="#1d4aff" stroke="#151515" strokeWidth="4" />
+        <rect
+          x="3"
+          y="3"
+          width="58"
+          height="58"
+          rx="14"
+          fill="#1d4aff"
+          stroke="#151515"
+          strokeWidth="4"
+        />
         <path d="M20 44V20h10c6 0 10 4 10 9s-4 9-10 9h-4v6z" fill="#fff" />
         <circle cx="44" cy="24" r="5" fill="#f9bd2b" stroke="#151515" strokeWidth="3" />
       </svg>
@@ -16,8 +26,8 @@ export function Logo({ size = 28 }: { size?: number }) {
   );
 }
 
-export function StatusPill({ status }: { status: string }) {
-  const meta = statusMetaFor(status);
+export function StatusPill({ status }: { status: PocLifecycleStatus }) {
+  const meta = STATUS_META[status];
   return (
     <span
       className="chip"
@@ -31,7 +41,12 @@ export function StatusPill({ status }: { status: string }) {
 export function ValidationBadge({ status }: { status?: "pass" | "warn" | "fail" }) {
   if (!status) return null;
   const tone = statusValidationTone(status);
-  const label = status === "pass" ? "Validation pass" : status === "warn" ? "Validation warn" : "Validation fail";
+  const label =
+    status === "pass"
+      ? "Validation pass"
+      : status === "warn"
+        ? "Validation warn"
+        : "Validation fail";
   const icon = status === "pass" ? "✓" : status === "warn" ? "!" : "✕";
   return (
     <span className="chip" style={{ background: "#fff", color: tone, borderColor: tone }}>
@@ -41,7 +56,13 @@ export function ValidationBadge({ status }: { status?: "pass" | "warn" | "fail" 
   );
 }
 
-export function Dot({ color = "var(--color-grass)", live = false }: { color?: string; live?: boolean }) {
+export function Dot({
+  color = "var(--color-grass)",
+  live = false,
+}: {
+  color?: string;
+  live?: boolean;
+}) {
   return (
     <span
       className={`inline-block h-2.5 w-2.5 rounded-full ${live ? "live-dot" : ""}`}
@@ -65,7 +86,11 @@ export function Section({
     <section className={`pop p-5 ${className}`}>
       {(title || right) && (
         <header className="mb-4 flex items-center justify-between gap-3">
-          {title && <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-muted)]">{title}</h3>}
+          {title && (
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-muted)]">
+              {title}
+            </h3>
+          )}
           {right}
         </header>
       )}
