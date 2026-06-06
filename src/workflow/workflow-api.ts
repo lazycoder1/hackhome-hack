@@ -38,6 +38,7 @@ export type WorkflowApi = {
     intent: CustomerReplyClassification["intent"];
     completedApproval: boolean;
     requiresSetup: boolean;
+    requiresDashboardRevision?: boolean;
     changes: string[];
   }>;
   monitorActivePoc(input: {

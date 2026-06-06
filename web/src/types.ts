@@ -28,6 +28,7 @@ export type PocLifecycleStatus =
   | "handoff_ready"
   | "handoff_sent"
   | "handoff_sent_with_gaps"
+  | "dashboard_revision_requested"
   | "active_poc"
   | "monitoring_running"
   | "monitoring_at_risk"

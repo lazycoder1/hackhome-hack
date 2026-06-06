@@ -31,7 +31,7 @@ export const PHASES: PhaseMeta[] = [
     label: "Setup",
     blurb: "Agent configuring PostHog",
     accent: "var(--color-brand)",
-    statuses: ["setup_queued", "setup_running"],
+    statuses: ["setup_queued", "setup_running", "dashboard_revision_requested"],
   },
   {
     id: "validate",
@@ -102,6 +102,11 @@ export const STATUS_META: Record<PocLifecycleStatus, StatusStyle> = {
   handoff_ready: { label: "Handoff ready", color: "var(--color-flame)", fg: "#fff" },
   handoff_sent: { label: "Handoff sent", color: "var(--color-grass)", fg: "#fff" },
   handoff_sent_with_gaps: { label: "Sent with gaps", color: "var(--color-warn)", fg: "#3d2c00" },
+  dashboard_revision_requested: {
+    label: "Revising dashboard",
+    color: "var(--color-brand)",
+    fg: "#fff",
+  },
   active_poc: { label: "Active PoC", color: "var(--color-grass)", fg: "#fff" },
   monitoring_running: { label: "Monitoring", color: "var(--color-sky)", fg: "#06343f" },
   monitoring_at_risk: { label: "At risk", color: "var(--color-warn)", fg: "#3d2c00" },

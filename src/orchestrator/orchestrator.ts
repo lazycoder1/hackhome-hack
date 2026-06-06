@@ -166,6 +166,7 @@ export class Orchestrator {
     intent: CustomerReplyClassification["intent"];
     completedApproval: boolean;
     requiresSetup: boolean;
+    requiresDashboardRevision?: boolean;
     changes: string[];
   }> {
     const now = this.clock().toISOString();
@@ -249,6 +250,25 @@ export class Orchestrator {
     }
 
     if (classification.intent === "needs_changes") {
+      if (await this.shouldRequestDashboardRevision(input.pocId, poc.status)) {
+        await this.audit.writeAuditLog({
+          pocId: input.pocId,
+          actor: "orchestrator",
+          action: "dashboard_revision_requested",
+          target: input.message.from,
+          outputSummary: changes.join("; "),
+          status: "succeeded",
+          createdAt: now,
+        });
+        return {
+          intent: classification.intent,
+          completedApproval: false,
+          requiresSetup: false,
+          requiresDashboardRevision: true,
+          changes,
+        };
+      }
+
       await this.revisePlanFromChanges({
         pocId: input.pocId,
         changes,
@@ -280,6 +300,21 @@ export class Orchestrator {
       requiresSetup: false,
       changes,
     };
+  }
+
+  private async shouldRequestDashboardRevision(
+    pocId: string,
+    status: string,
+  ): Promise<boolean> {
+    if (!isPostHandoffStatus(status)) {
+      return false;
+    }
+
+    const setupResult = await this.store.getSetupResult(pocId);
+    return Boolean(
+      setupResult?.createdResources.some((resource) => resource.type === "dashboard") ||
+        setupResult?.updatedResources.some((resource) => resource.type === "dashboard"),
+    );
   }
 
   async revisePlanFromChanges(input: {
@@ -970,6 +1005,17 @@ function inferDashboardPresentationChanges(textBody: string): string[] {
   }
 
   return [];
+}
+
+function isPostHandoffStatus(status: string): boolean {
+  return (
+    status === "handoff_sent" ||
+    status === "handoff_sent_with_gaps" ||
+    status === "active_poc" ||
+    status === "monitoring_running" ||
+    status === "monitoring_at_risk" ||
+    status === "monitoring_criteria_met"
+  );
 }
 
 function recordField(value: unknown): Record<string, unknown> | undefined {

@@ -147,6 +147,7 @@ function canProcessReplyForStatus(status: PocLifecycleStatus): boolean {
     status === "confirmation_sent" ||
     status === "approved" ||
     status === "setup_running" ||
+    status === "dashboard_revision_requested" ||
     status === "handoff_sent" ||
     status === "handoff_sent_with_gaps" ||
     status === "active_poc" ||

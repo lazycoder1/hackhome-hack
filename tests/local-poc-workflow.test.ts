@@ -504,6 +504,151 @@ describe("LocalPocWorkflow", () => {
     );
     expect((await store.getPoc("poc_123"))?.status).toBe("handoff_sent_with_gaps");
   });
+
+  it("revises an existing dashboard from post-handoff customer feedback", async () => {
+    const store = new InMemoryPocStore();
+    const email = new InMemoryEmailTool({ clock });
+    const audit = new InMemoryAuditTool({ clock });
+    let setupPlan: PocPlan | undefined;
+    const workflow = new LocalPocWorkflow({
+      store,
+      setupAgent: {
+        async setup(plan: PocPlan): Promise<SetupResult> {
+          setupPlan = plan;
+          return {
+            pocId: plan.pocId,
+            status: "succeeded",
+            posthog: {
+              projectId: "project-1",
+              projectName: "Acme PoC",
+              projectUrl: "https://posthog.example.test/project/project-1",
+              hostUrl: "https://posthog.example.test",
+            },
+            createdResources: [
+              {
+                type: "dashboard",
+                id: "dashboard-2",
+                name: "Signup dashboard revision",
+                url: "https://posthog.example.test/dashboard/2",
+              },
+              {
+                type: "insight",
+                id: "insight-2",
+                name: "Signup trend by day",
+                url: "https://posthog.example.test/insight/2",
+              },
+            ],
+            updatedResources: [],
+            skippedResources: [],
+            credentialRefs: [],
+            sdkInstructions: [],
+            knownGaps: [],
+            validationReport: {
+              pocId: plan.pocId,
+              status: "pass",
+              checkedAt: "2026-06-04T00:00:00.000Z",
+              checks: [],
+              summary: "Dashboard revision passed.",
+              knownGaps: [],
+            },
+            auditEventIds: [],
+          };
+        },
+      } as unknown as PostHogPocSetupAgent,
+      handoffGenerator: new HandoffGenerator(),
+      email,
+      audit,
+      replyProcessor: {
+        async processCustomerReply() {
+          return {
+            intent: "needs_changes",
+            completedApproval: false,
+            requiresSetup: false,
+            requiresDashboardRevision: true,
+            changes: ["Too many numbers; add more graphs."],
+          };
+        },
+      },
+      clock,
+    });
+
+    const plan = approvedPlan();
+    plan.setup.dashboards = [
+      {
+        name: "Signup dashboard",
+        description: "Initial signup dashboard.",
+        tiles: [],
+      },
+    ];
+    await store.createPoc({
+      pocId: "poc_123",
+      status: "handoff_sent",
+      createdAt: "2026-06-04T00:00:00.000Z",
+      updatedAt: "2026-06-04T00:00:00.000Z",
+      activePlanVersion: 1,
+      confirmationThreadId: "thread-1",
+      sourceText: "Acme wants PostHog.",
+    });
+    await store.savePlan(plan);
+    await store.saveSetupResult({
+      pocId: "poc_123",
+      status: "succeeded",
+      posthog: {
+        projectId: "project-1",
+        projectName: "Acme PoC",
+        projectUrl: "https://posthog.example.test/project/project-1",
+        hostUrl: "https://posthog.example.test",
+      },
+      createdResources: [
+        {
+          type: "dashboard",
+          id: "dashboard-1",
+          name: "Signup dashboard",
+          url: "https://posthog.example.test/dashboard/1",
+        },
+      ],
+      updatedResources: [],
+      skippedResources: [],
+      credentialRefs: [],
+      sdkInstructions: [],
+      knownGaps: [],
+      auditEventIds: [],
+    });
+
+    const result = await workflow.processEmailReply({
+      pocId: "poc_123",
+      message: {
+        id: "inbound-1",
+        threadId: "thread-1",
+        from: "buyer@acme.test",
+        to: ["poc@example.test"],
+        subject: "Re: Your PostHog PoC is ready",
+        textBody: "Too many numbers; add more graphs.",
+        receivedAt: "2026-06-04T00:05:00.000Z",
+      },
+    });
+
+    expect(result).toMatchObject({
+      intent: "needs_changes",
+      requiresDashboardRevision: true,
+    });
+    expect(setupPlan?.assumptions).toContain(
+      "Customer dashboard revision request: Too many numbers; add more graphs.",
+    );
+    expect(setupPlan?.setup.dashboards[0]?.name).toContain("revision");
+    expect((await store.getPoc("poc_123"))?.status).toBe("handoff_sent");
+    expect(await store.getPlan("poc_123", 2)).toBeUndefined();
+    expect(email.sentEmails).toHaveLength(1);
+    expect(email.sentEmails[0]).toMatchObject({
+      to: ["buyer@acme.test"],
+      subject: "Re: Your PostHog PoC is ready",
+      threadId: "thread-1",
+    });
+    expect(email.sentEmails[0]?.markdownBody).toContain("PostHog supports graph-heavy dashboards");
+    expect(email.sentEmails[0]?.markdownBody).toContain(
+      "https://posthog.example.test/dashboard/2",
+    );
+  });
 });
 
 function clock(): Date {

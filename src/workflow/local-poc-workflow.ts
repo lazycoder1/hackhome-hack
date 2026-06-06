@@ -23,6 +23,7 @@ export type LocalPocWorkflowOptions = {
       intent: "approved" | "needs_changes" | "question" | "rejected" | "unclear";
       completedApproval: boolean;
       requiresSetup: boolean;
+      requiresDashboardRevision?: boolean;
       changes: string[];
     }>;
   };
@@ -97,6 +98,7 @@ export class LocalPocWorkflow {
     intent: "approved" | "needs_changes" | "question" | "rejected" | "unclear";
     completedApproval: boolean;
     requiresSetup: boolean;
+    requiresDashboardRevision?: boolean;
     changes: string[];
   }> {
     if (!this.replyProcessor) {
@@ -111,8 +113,64 @@ export class LocalPocWorkflow {
         approvalSource: "email_reply",
       });
     }
+    if (result.requiresDashboardRevision) {
+      await this.reviseDashboardFromFeedback({
+        pocId: input.pocId,
+        requestedBy: input.message.from,
+        changes: result.changes,
+        threadId: input.message.threadId,
+        subject: input.message.subject,
+      });
+    }
 
     return result;
+  }
+
+  async reviseDashboardFromFeedback(input: {
+    pocId: string;
+    requestedBy: string;
+    changes: string[];
+    threadId?: string;
+    subject?: string;
+  }): Promise<{
+    setupResult: Awaited<ReturnType<PocSetupAgent["setup"]>>;
+    responseEmailId: string;
+    responseThreadId: string;
+  }> {
+    const now = this.clock().toISOString();
+    const plan = await this.loadActivePlan(input.pocId);
+    if (plan.status !== "approved") {
+      throw new Error(`PoC ${input.pocId} active plan is not approved`);
+    }
+
+    await this.store.updateStatus(input.pocId, "dashboard_revision_requested", now);
+    await this.audit.writeAuditLog({
+      pocId: input.pocId,
+      actor: "orchestrator",
+      action: "start_dashboard_revision",
+      target: input.requestedBy,
+      outputSummary: input.changes.join("; "),
+      status: "started",
+      createdAt: now,
+    });
+
+    const revisionPlan = dashboardRevisionPlan(plan, input.changes, now);
+    const setupResult = await this.runSetup(input.pocId, revisionPlan);
+    const sent = await this.sendDashboardRevisionResponse({
+      pocId: input.pocId,
+      plan,
+      setupResult,
+      requestedBy: input.requestedBy,
+      changes: input.changes,
+      threadId: input.threadId,
+      subject: input.subject,
+    });
+
+    return {
+      setupResult,
+      responseEmailId: sent.emailId,
+      responseThreadId: sent.threadId,
+    };
   }
 
   async retryPocStage(input: RetryPocStageInput): Promise<RetryPocStageResult> {
@@ -245,6 +303,68 @@ export class LocalPocWorkflow {
     };
   }
 
+  private async sendDashboardRevisionResponse(input: {
+    pocId: string;
+    plan: PocPlan;
+    setupResult: SetupResult;
+    requestedBy: string;
+    changes: string[];
+    threadId?: string;
+    subject?: string;
+  }): Promise<{
+    emailId: string;
+    threadId: string;
+  }> {
+    const status =
+      input.setupResult.status === "succeeded_with_warnings"
+        ? "handoff_sent_with_gaps"
+        : "handoff_sent";
+    await this.store.updateStatus(input.pocId, status, this.clock().toISOString());
+
+    const dashboard = latestDashboard(input.setupResult);
+    const insights = input.setupResult.createdResources.filter((resource) => resource.type === "insight");
+    const body = [
+      `Hi ${input.plan.customer.contacts[0]?.name ?? input.plan.customer.companyName},`,
+      "",
+      "Yes, PostHog supports graph-heavy dashboards. I revised the dashboard based on your feedback so it leans more on charts and clearer visual comparisons instead of dense numeric tiles.",
+      "",
+      dashboard?.url ? `Updated dashboard: ${dashboard.url}` : "The dashboard revision has been applied.",
+      "",
+      ...(insights.length
+        ? [
+            "Updated views:",
+            ...insights.slice(0, 6).map((insight) => `- ${insight.name}${insight.url ? `: ${insight.url}` : ""}`),
+            "",
+          ]
+        : []),
+      input.setupResult.knownGaps.length
+        ? `Known caveat: ${input.setupResult.knownGaps.join("; ")}`
+        : "I did not find any blocking caveats in the revision.",
+      "",
+      "Reply with any other dashboard feedback and I will keep iterating on the pilot.",
+    ].join("\n");
+
+    const sent = await this.email.sendEmail({
+      to: [input.requestedBy],
+      subject: `Re: ${(input.subject ?? `PostHog PoC dashboard`).replace(/^Re:\s*/i, "")}`,
+      markdownBody: body,
+      threadId: input.threadId,
+      tags: [`poc:${input.pocId}`, "product:posthog", "stage:dashboard-revision"],
+    });
+
+    await this.audit.writeAuditLog({
+      pocId: input.pocId,
+      actor: "orchestrator",
+      action: "send_dashboard_revision_response",
+      target: input.requestedBy,
+      outputSummary: dashboard?.url ?? input.setupResult.status,
+      status: "succeeded",
+      createdAt: this.clock().toISOString(),
+    });
+
+    return sent;
+  }
+
   private async sendSetupClarification(
     pocId: string,
     plan: PocPlan,
@@ -319,4 +439,40 @@ function splitClarificationQuestions(value: string): string[] {
     .split(";")
     .map((question) => question.trim())
     .filter((question) => question.length > 0);
+}
+
+function dashboardRevisionPlan(plan: PocPlan, changes: string[], createdAt: string): PocPlan {
+  const revisionKey = createdAt.replace(/\D/g, "").slice(0, 14);
+  const cleanChanges = changes.map((change) => change.trim()).filter(Boolean);
+  const revisionAssumptions = [
+    ...cleanChanges.map((change) => `Customer dashboard revision request: ${change}`),
+    "Create a replacement dashboard revision for the already-delivered pilot dashboard. Prefer graph/chart-heavy views, clear axes, and fewer numeric-only summary cards.",
+  ];
+
+  return {
+    ...plan,
+    assumptions: uniqueStrings([...plan.assumptions, ...revisionAssumptions]),
+    setup: {
+      ...plan.setup,
+      dashboards: plan.setup.dashboards.map((dashboard) => ({
+        ...dashboard,
+        name: `${dashboard.name} revision ${revisionKey}`,
+        description: [
+          dashboard.description ?? dashboard.name,
+          "Updated from post-handoff customer feedback.",
+          ...cleanChanges,
+        ].join(" "),
+      })),
+    },
+  };
+}
+
+function latestDashboard(setupResult: SetupResult) {
+  return [...setupResult.updatedResources, ...setupResult.createdResources]
+    .filter((resource) => resource.type === "dashboard")
+    .at(-1);
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
 }
