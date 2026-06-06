@@ -135,13 +135,12 @@ export class PostHogPocSetupAgent {
         if (agenticSpec?.clarificationRequired) {
           const questions = agenticSpec.clarificationQuestions.join("; ");
           knownGaps.push(
-            `DeepSeek requested business clarification before dashboard creation: ${questions}`,
+            `LLM requested business clarification, but setup continued with the approved fallback dashboard: ${questions}`,
           );
           skippedResources.push({
-            reason: `DeepSeek requested business clarification before dashboard creation: ${questions}`,
+            reason: `LLM requested business clarification; using approved fallback dashboard instead: ${questions}`,
             resource: { type: "dashboard", name: dashboard.name },
           });
-          continue;
         }
 
         const validatedTiles = agenticSpec
@@ -157,23 +156,29 @@ export class PostHogPocSetupAgent {
 
         if (agenticSpec && !validatedTiles?.length) {
           knownGaps.push(
-            `DeepSeek did not produce any PostHog queries that validated for dashboard "${dashboard.name}".`,
+            `LLM did not produce validated PostHog queries for dashboard "${dashboard.name}"; setup continued with the approved fallback dashboard.`,
           );
           skippedResources.push({
-            reason: "No DeepSeek-generated dashboard tile queries validated.",
+            reason: "No LLM-generated dashboard tile queries validated; using approved fallback dashboard instead.",
             resource: { type: "dashboard", name: dashboard.name },
           });
-          continue;
         }
 
         const dashboardRef = await createOrUseExistingResource({
           type: "dashboard",
-          name: agenticSpec?.dashboardName ?? dashboard.name,
+          name:
+            agenticSpec && validatedTiles?.length ? agenticSpec.dashboardName ?? dashboard.name : dashboard.name,
           create: () =>
             this.posthog.createDashboard({
               projectId,
-              name: agenticSpec?.dashboardName ?? dashboard.name,
-              description: agenticSpec?.dashboardDescription ?? dashboard.description,
+              name:
+                agenticSpec && validatedTiles?.length
+                  ? agenticSpec.dashboardName ?? dashboard.name
+                  : dashboard.name,
+              description:
+                agenticSpec && validatedTiles?.length
+                  ? agenticSpec.dashboardDescription ?? dashboard.description
+                  : dashboard.description,
               tags: [`poc:${plan.pocId}`, "source:poc-automation"],
             }),
           skippedResources,
@@ -182,7 +187,9 @@ export class PostHogPocSetupAgent {
         createdResources.push(dashboardRef);
 
         const tiles =
-          validatedTiles?.map(agenticTileForCreation) ??
+          validatedTiles?.length
+            ? validatedTiles.map(agenticTileForCreation)
+            :
           dashboardTiles(dashboard.tiles, plan.setup.events);
         for (const tile of tiles) {
           const insight = await createOrUseExistingResource({
