@@ -74,13 +74,55 @@ export class DeepSeekClient implements LlmJsonClient {
     try {
       return JSON.parse(content);
     } catch (error) {
-      const repaired = repairJsonObject(content);
+      const repaired = repairJsonObject(content) ?? (await this.repairJsonWithModel(input.model, content));
       if (repaired) {
         return repaired;
       }
       throw new Error(`LLM response was not valid JSON: ${(error as Error).message}`, {
         cause: error,
       });
+    }
+  }
+
+  private async repairJsonWithModel(model: string, invalidJson: string): Promise<unknown | undefined> {
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.apiKey}`,
+          "content-type": "application/json",
+        },
+        signal: AbortSignal.timeout(this.timeoutMs),
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Repair the user's invalid JSON into strict valid JSON. Return only the repaired JSON object. Do not add markdown, prose, comments, or explanations.",
+            },
+            { role: "user", content: invalidJson },
+          ],
+          ...(supportsTemperature(model) ? { temperature: 0 } : {}),
+          ...(model.startsWith("gpt-5.5") ? { reasoning_effort: "high" } : {}),
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (!response.ok) {
+        return undefined;
+      }
+      const body = (await response.json()) as DeepSeekResponse;
+      const content = body.choices?.[0]?.message?.content;
+      if (!content) {
+        return undefined;
+      }
+      try {
+        return JSON.parse(content);
+      } catch {
+        return repairJsonObject(content);
+      }
+    } catch {
+      return undefined;
     }
   }
 }

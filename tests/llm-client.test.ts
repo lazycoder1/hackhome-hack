@@ -136,4 +136,39 @@ describe("DeepSeekClient", () => {
       }),
     ).resolves.toEqual({ ok: true, nested: { value: 1 } });
   });
+
+  it("uses the model to repair unrecoverable malformed JSON responses", async () => {
+    let calls = 0;
+    const client = new DeepSeekClient({
+      apiKey: "test-key",
+      baseUrl: "https://api.deepseek.com",
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content:
+                    calls === 1
+                      ? '{"items": ["broken" "missing comma"]}'
+                      : '{"items":["broken","missing comma"]}',
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    });
+
+    await expect(
+      client.completeJson({
+        model: "deepseek-v4-flash",
+        system: "Return JSON.",
+        user: "Return JSON.",
+      }),
+    ).resolves.toEqual({ items: ["broken", "missing comma"] });
+    expect(calls).toBe(2);
+  });
 });
