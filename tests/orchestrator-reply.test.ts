@@ -191,6 +191,39 @@ describe("Orchestrator reply handling", () => {
     });
   });
 
+  it("does not require setup when PoC is already past handoff", async () => {
+    const completed: unknown[] = [];
+    const { orchestrator, store } = systemWithReplyClassifier({
+      intent: "approved",
+      completed,
+    });
+    await orchestrator.submitRequirementsBlob(requirementsBlob());
+    await store.updatePoc("poc_123", {
+      status: "handoff_sent",
+      updatedAt: "2026-06-04T00:10:00.000Z",
+    });
+
+    const result = await orchestrator.processCustomerReply({
+      pocId: "poc_123",
+      message: {
+        id: "inbound-2",
+        threadId: "thread-1",
+        from: "buyer@acme.test",
+        to: ["poc@example.test"],
+        subject: "Re: Please confirm your PostHog PoC plan",
+        textBody: "Approved, please proceed.",
+        receivedAt: "2026-06-04T00:15:00.000Z",
+      },
+    });
+
+    expect(result).toEqual({
+      intent: "approved",
+      completedApproval: true,
+      requiresSetup: false,
+      changes: [],
+    });
+  });
+
   it("treats dashboard readability complaints as a change request after approval", async () => {
     const sentEmails: unknown[] = [];
     const { orchestrator } = systemWithReplyClassifier({

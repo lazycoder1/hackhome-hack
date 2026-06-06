@@ -260,9 +260,7 @@ export class PovLoopRunner {
     const cutoff = this.clock().getTime() - this.cooldownMs;
     return priorEvents.some(
       (event) =>
-        event.cadenceKey === cadenceKey &&
-        isActed(event) &&
-        new Date(event.ts).getTime() >= cutoff,
+        event.cadenceKey === cadenceKey && isActed(event) && new Date(event.ts).getTime() >= cutoff,
     );
   }
 

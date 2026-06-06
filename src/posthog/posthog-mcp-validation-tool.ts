@@ -81,7 +81,7 @@ export class PostHogMcpValidationTool implements ValidationTool {
     if (input.expectedEvents?.length) {
       checks.push(
         await this.liveCheck("trends-query", "Trends query runs", () =>
-        this.toolClient.callTool("execute-sql", {
+          this.toolClient.callTool("execute-sql", {
             query: trendsQuery(input.expectedEvents ?? []),
           }),
         ),
@@ -90,7 +90,7 @@ export class PostHogMcpValidationTool implements ValidationTool {
     if ((input.expectedEvents?.length ?? 0) >= 2) {
       checks.push(
         await this.liveCheck("funnel-query", "Funnel query runs", () =>
-        this.toolClient.callTool("execute-sql", {
+          this.toolClient.callTool("execute-sql", {
             query: funnelQuery(input.expectedEvents ?? []),
           }),
         ),

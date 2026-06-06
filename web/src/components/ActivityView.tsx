@@ -52,7 +52,8 @@ function pendingNudges(events: ActivityEvent[]): ActivityEvent[] {
       .filter(Boolean),
   );
   return events.filter(
-    (e) => e.kind === "action_gated" && e.refs?.approvalTokenId && !decided.has(e.refs.approvalTokenId),
+    (e) =>
+      e.kind === "action_gated" && e.refs?.approvalTokenId && !decided.has(e.refs.approvalTokenId),
   );
 }
 
@@ -72,7 +73,8 @@ export function ActivityView({ poc }: { poc: PocStatusDetail }) {
   const emailsSent = list.filter((e) => e.kind === "email_sent").length;
   const emailsReceived = list.filter((e) => e.kind === "email_received").length;
   const report = poc.latestMonitoringReport;
-  const criteriaMet = report?.successCriteriaProgress?.filter((c) => c.status === "met").length ?? 0;
+  const criteriaMet =
+    report?.successCriteriaProgress?.filter((c) => c.status === "met").length ?? 0;
   const criteriaTotal = report?.successCriteriaProgress?.length ?? 0;
 
   return (
@@ -117,11 +119,16 @@ export function ActivityView({ poc }: { poc: PocStatusDetail }) {
               <div className="mb-3 flex items-center gap-2">
                 <span
                   className="chip"
-                  style={{ background: statusValidationTone(monitoringTone(report.status)), color: "#fff" }}
+                  style={{
+                    background: statusValidationTone(monitoringTone(report.status)),
+                    color: "#fff",
+                  }}
                 >
                   {report.status.replaceAll("_", " ")}
                 </span>
-                <span className="chip" style={{ background: "#fff" }}>risk: {report.riskLevel}</span>
+                <span className="chip" style={{ background: "#fff" }}>
+                  risk: {report.riskLevel}
+                </span>
               </div>
               <div className="text-sm font-semibold">
                 Success criteria: {criteriaMet}/{criteriaTotal} met
@@ -202,7 +209,9 @@ function NudgeCard({
     <div className="pop-sm p-4">
       <div className="mb-1 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-wide text-[var(--color-berry)]">
         <span>✎ Agent draft</span>
-        {nudge.cadenceKey && <span className="text-[var(--color-muted)]">· {nudge.cadenceKey}</span>}
+        {nudge.cadenceKey && (
+          <span className="text-[var(--color-muted)]">· {nudge.cadenceKey}</span>
+        )}
       </div>
       <div className="text-sm font-extrabold">{subject}</div>
       <div className="mono mt-1 text-[0.7rem] text-[var(--color-muted)]">
@@ -215,10 +224,18 @@ function NudgeCard({
       />
       {err && <p className="mt-2 text-xs font-semibold text-[var(--color-fail)]">{err}</p>}
       <div className="mt-3 flex gap-2">
-        <button className="btn btn-grass btn-sm" disabled={Boolean(busy)} onClick={() => decide("approved")}>
+        <button
+          className="btn btn-grass btn-sm"
+          disabled={Boolean(busy)}
+          onClick={() => decide("approved")}
+        >
           {busy === "approved" ? "Sending…" : "✓ Approve & send"}
         </button>
-        <button className="btn btn-flame btn-sm" disabled={Boolean(busy)} onClick={() => decide("rejected")}>
+        <button
+          className="btn btn-flame btn-sm"
+          disabled={Boolean(busy)}
+          onClick={() => decide("rejected")}
+        >
           Reject
         </button>
       </div>
@@ -237,10 +254,15 @@ function TimelineRow({ event }: { event: ActivityEvent }) {
         {meta.icon}
       </span>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: meta.color }}>
+        <span
+          className="text-xs font-extrabold uppercase tracking-wide"
+          style={{ color: meta.color }}
+        >
           {meta.label}
         </span>
-        <span className="mono shrink-0 text-[0.65rem] text-[var(--color-muted)]">{timeAgo(event.ts)}</span>
+        <span className="mono shrink-0 text-[0.65rem] text-[var(--color-muted)]">
+          {timeAgo(event.ts)}
+        </span>
       </div>
       <p className="text-sm font-medium text-[var(--color-ink)]">{event.summary}</p>
       <div className="mt-0.5 text-[0.68rem] text-[var(--color-muted)]">

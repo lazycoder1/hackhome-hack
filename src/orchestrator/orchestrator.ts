@@ -2,6 +2,7 @@ import type {
   CustomerReplyClassification,
   InboundEmailMessage,
   MissingDetail,
+  PocLifecycleStatus,
   PocPlan,
   PocRequirements,
 } from "../contracts.js";
@@ -241,10 +242,26 @@ export class Orchestrator {
         now,
       );
 
+      const postSetupStatuses = new Set<PocLifecycleStatus>([
+        "handoff_ready",
+        "handoff_sent",
+        "handoff_sent_with_gaps",
+        "dashboard_revision_requested",
+        "active_poc",
+        "monitoring_running",
+        "monitoring_at_risk",
+        "monitoring_criteria_met",
+        "needs_human_review",
+        "failed",
+        "completed",
+        "teardown_queued",
+        "teardown_complete",
+      ]);
+
       return {
         intent: classification.intent,
         completedApproval,
-        requiresSetup: classification.intent === "approved",
+        requiresSetup: classification.intent === "approved" && !postSetupStatuses.has(poc.status),
         changes,
       };
     }
@@ -302,10 +319,7 @@ export class Orchestrator {
     };
   }
 
-  private async shouldRequestDashboardRevision(
-    pocId: string,
-    status: string,
-  ): Promise<boolean> {
+  private async shouldRequestDashboardRevision(pocId: string, status: string): Promise<boolean> {
     if (!isPostHandoffStatus(status)) {
       return false;
     }
@@ -313,7 +327,7 @@ export class Orchestrator {
     const setupResult = await this.store.getSetupResult(pocId);
     return Boolean(
       setupResult?.createdResources.some((resource) => resource.type === "dashboard") ||
-        setupResult?.updatedResources.some((resource) => resource.type === "dashboard"),
+      setupResult?.updatedResources.some((resource) => resource.type === "dashboard"),
     );
   }
 
@@ -368,7 +382,9 @@ export class Orchestrator {
       ...classification,
       intent: "needs_changes",
       extractedChanges:
-        classification.extractedChanges.length === 0 ? inferredChanges : classification.extractedChanges,
+        classification.extractedChanges.length === 0
+          ? inferredChanges
+          : classification.extractedChanges,
     };
   }
 
@@ -802,7 +818,8 @@ function normalizeDashboards(
   const fallbackTiles = fallbackDashboards[0]?.tiles ?? [];
   return dashboards.map((dashboard) => ({
     ...dashboard,
-    tiles: Array.isArray(dashboard.tiles) && dashboard.tiles.length ? dashboard.tiles : fallbackTiles,
+    tiles:
+      Array.isArray(dashboard.tiles) && dashboard.tiles.length ? dashboard.tiles : fallbackTiles,
   }));
 }
 
@@ -979,9 +996,10 @@ function inferDashboardPresentationChanges(textBody: string): string[] {
     return [];
   }
 
-  const hasDashboardContext = /(dashboard|report|handoff|view|chart|charts|graph|graphs|visual|visuals|metric|metrics|number|numbers|tile|tiles|gauge|card|cards)/.test(
-    text,
-  );
+  const hasDashboardContext =
+    /(dashboard|report|handoff|view|chart|charts|graph|graphs|visual|visuals|metric|metrics|number|numbers|tile|tiles|gauge|card|cards)/.test(
+      text,
+    );
   if (!hasDashboardContext) {
     return [];
   }

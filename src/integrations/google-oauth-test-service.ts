@@ -368,9 +368,9 @@ export class GoogleOAuthTestService {
     if (!this.sqlitePath) return undefined;
     const db = this.openTokenDb();
     try {
-      const row = db
-        .prepare("SELECT body FROM oauth_tokens WHERE key = ?")
-        .get("google_oauth") as { body?: unknown } | undefined;
+      const row = db.prepare("SELECT body FROM oauth_tokens WHERE key = ?").get("google_oauth") as
+        | { body?: unknown }
+        | undefined;
       if (typeof row?.body !== "string") {
         const legacyToken = this.loadFileToken();
         if (legacyToken) {

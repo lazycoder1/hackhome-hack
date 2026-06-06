@@ -3,9 +3,9 @@ import { join } from "node:path";
 export function isRailwayRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
   return Boolean(
     env.RAILWAY_PROJECT_ID ||
-      env.RAILWAY_SERVICE_ID ||
-      env.RAILWAY_ENVIRONMENT_ID ||
-      env.RAILWAY_VOLUME_MOUNT_PATH,
+    env.RAILWAY_SERVICE_ID ||
+    env.RAILWAY_ENVIRONMENT_ID ||
+    env.RAILWAY_VOLUME_MOUNT_PATH,
   );
 }
 

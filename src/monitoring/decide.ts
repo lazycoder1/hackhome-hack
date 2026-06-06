@@ -49,10 +49,7 @@ export type DecideContext = {
 /** A review is "near" once we're within this window of the review date. */
 const REVIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-export function decide(
-  report: PocMonitoringReport,
-  context: DecideContext = {},
-): ProposedAction[] {
+export function decide(report: PocMonitoringReport, context: DecideContext = {}): ProposedAction[] {
   const actions: ProposedAction[] = [primaryAction(report)];
 
   // Supplementary internal recommendations the sensing layer already computed (PRD §10):
@@ -107,7 +104,8 @@ function primaryAction(report: PocMonitoringReport): ProposedAction {
         type: "escalate_se",
         customerFacing: false,
         cadenceKey: "escalate:blocked",
-        reason: "Only synthetic traffic is visible — real customer events are blocked. SE help needed.",
+        reason:
+          "Only synthetic traffic is visible — real customer events are blocked. SE help needed.",
         urgency: "high",
       };
     case "unknown":
@@ -189,7 +187,8 @@ function lifecycleByDate(
       type: "extend_poc",
       customerFacing: false,
       cadenceKey: "extend:poc",
-      reason: "Review date is near with partial progress — consider extending the PoC to finish evaluating.",
+      reason:
+        "Review date is near with partial progress — consider extending the PoC to finish evaluating.",
       urgency: "medium",
     };
   }

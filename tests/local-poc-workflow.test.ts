@@ -645,9 +645,7 @@ describe("LocalPocWorkflow", () => {
       threadId: "thread-1",
     });
     expect(email.sentEmails[0]?.markdownBody).toContain("PostHog supports graph-heavy dashboards");
-    expect(email.sentEmails[0]?.markdownBody).toContain(
-      "https://posthog.example.test/dashboard/2",
-    );
+    expect(email.sentEmails[0]?.markdownBody).toContain("https://posthog.example.test/dashboard/2");
   });
 });
 

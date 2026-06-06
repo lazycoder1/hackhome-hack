@@ -48,8 +48,7 @@ export class NudgeApprovalService {
   async complete(input: NudgeDecisionInput): Promise<NudgeDecisionResult> {
     const events = await this.store.listActivityEvents(input.pocId, { limit: 300 });
     const gated = events.find(
-      (event) =>
-        event.kind === "action_gated" && event.refs?.approvalTokenId === input.tokenId,
+      (event) => event.kind === "action_gated" && event.refs?.approvalTokenId === input.tokenId,
     );
     if (!gated) {
       return { status: "not_found" };

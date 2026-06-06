@@ -134,7 +134,9 @@ export class PostHogPocSetupAgent {
         });
         if (agenticSpec?.clarificationRequired) {
           const questions = agenticSpec.clarificationQuestions.join("; ");
-          knownGaps.push(`DeepSeek requested business clarification before dashboard creation: ${questions}`);
+          knownGaps.push(
+            `DeepSeek requested business clarification before dashboard creation: ${questions}`,
+          );
           skippedResources.push({
             reason: `DeepSeek requested business clarification before dashboard creation: ${questions}`,
             resource: { type: "dashboard", name: dashboard.name },
@@ -667,7 +669,9 @@ function normalizeAgenticDashboardSpec(value: unknown): AgenticDashboardSpec | u
   }
 
   const tiles = Array.isArray(value.tiles)
-    ? value.tiles.map(normalizeAgenticDashboardTile).filter((tile): tile is AgenticDashboardTile => Boolean(tile))
+    ? value.tiles
+        .map(normalizeAgenticDashboardTile)
+        .filter((tile): tile is AgenticDashboardTile => Boolean(tile))
     : [];
 
   return {

@@ -84,7 +84,11 @@ describe("NudgeApprovalService", () => {
     await store.saveActivityEvent(gated("tok_1"));
 
     await service.complete({ pocId: "poc_1", tokenId: "tok_1", decision: "approved" });
-    const second = await service.complete({ pocId: "poc_1", tokenId: "tok_1", decision: "approved" });
+    const second = await service.complete({
+      pocId: "poc_1",
+      tokenId: "tok_1",
+      decision: "approved",
+    });
 
     expect(second.status).toBe("already_decided");
     expect(email.sentEmails).toHaveLength(1);
@@ -94,7 +98,11 @@ describe("NudgeApprovalService", () => {
     const { store, email, service } = await makeService();
     await store.saveActivityEvent(gated("tok_2"));
 
-    const result = await service.complete({ pocId: "poc_1", tokenId: "tok_2", decision: "rejected" });
+    const result = await service.complete({
+      pocId: "poc_1",
+      tokenId: "tok_2",
+      decision: "rejected",
+    });
 
     expect(result.status).toBe("rejected");
     expect(email.sentEmails).toHaveLength(0);
@@ -104,7 +112,11 @@ describe("NudgeApprovalService", () => {
 
   it("returns not_found for an unknown token", async () => {
     const { service } = await makeService();
-    const result = await service.complete({ pocId: "poc_1", tokenId: "nope", decision: "approved" });
+    const result = await service.complete({
+      pocId: "poc_1",
+      tokenId: "nope",
+      decision: "approved",
+    });
     expect(result.status).toBe("not_found");
   });
 });

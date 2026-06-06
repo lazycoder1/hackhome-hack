@@ -12,7 +12,14 @@ import {
 } from "../components/ui";
 import { Story } from "../components/Story";
 import { ActivityView } from "../components/ActivityView";
-import { LIFECYCLE_ORDER, STATUS_META, isAwaitingApproval, phaseOf, statusValidationTone, timeAgo } from "../lifecycle";
+import {
+  LIFECYCLE_ORDER,
+  STATUS_META,
+  isAwaitingApproval,
+  phaseOf,
+  statusValidationTone,
+  timeAgo,
+} from "../lifecycle";
 import { usePoc } from "../hooks";
 import type {
   PocPlan,
@@ -54,8 +61,12 @@ export function PocDetailPage() {
       <>
         <PageHeader title="PoC not found" />
         <div className="px-6 py-6 md:px-8">
-          <Banner tone="danger">Couldn’t load {pocId}. {error}</Banner>
-          <Link to="/" className="btn mt-4">← Back to pipeline</Link>
+          <Banner tone="danger">
+            Couldn’t load {pocId}. {error}
+          </Banner>
+          <Link to="/" className="btn mt-4">
+            ← Back to pipeline
+          </Link>
         </div>
       </>
     );
@@ -66,7 +77,12 @@ export function PocDetailPage() {
   const validation = setup?.validationReport;
 
   const tabs: { id: Tab; label: string; enabled: boolean; story: string }[] = [
-    { id: "plan", label: "Plan", enabled: Boolean(poc.activePlan ?? poc.requirements), story: "US-O5" },
+    {
+      id: "plan",
+      label: "Plan",
+      enabled: Boolean(poc.activePlan ?? poc.requirements),
+      story: "US-O5",
+    },
     { id: "setup", label: "Setup & Resources", enabled: Boolean(setup), story: "US-O6" },
     { id: "validation", label: "Validation", enabled: Boolean(validation), story: "US-O7" },
     { id: "handoff", label: "Handoff", enabled: Boolean(setup), story: "US-C4" },
@@ -80,10 +96,17 @@ export function PocDetailPage() {
         subtitle={poc.objective}
         right={
           <div className="flex flex-wrap items-center gap-2">
-            <Link to="/" className="btn">← Pipeline</Link>
+            <Link to="/" className="btn">
+              ← Pipeline
+            </Link>
             {isAwaitingApproval(poc.status) && poc.approvalUrl && (
               <Story id="US-O9" side="bottom">
-                <a className="btn btn-grass" href={poc.approvalUrl} target="_blank" rel="noreferrer">
+                <a
+                  className="btn btn-grass"
+                  href={poc.approvalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Open approval page
                 </a>
               </Story>
@@ -103,7 +126,9 @@ export function PocDetailPage() {
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <StatusPill status={poc.status} />
           <ValidationBadge status={poc.validationStatus} />
-          <span className="chip" style={{ background: "#fff" }}>{phase.label} phase</span>
+          <span className="chip" style={{ background: "#fff" }}>
+            {phase.label} phase
+          </span>
           <Story id="US-O4" side="bottom" />
           <span className="mono ml-auto text-xs text-[var(--color-muted)]">
             {poc.pocId} · updated {timeAgo(poc.updatedAt)}
@@ -113,8 +138,8 @@ export function PocDetailPage() {
         {poc.status === "needs_human_review" && (
           <div className="mb-5 flex items-start gap-2">
             <Banner tone="warn">
-              ⚠ This PoC is paused for human review. Validation did not meet the acceptance threshold —
-              inspect the Validation tab and decide whether to override or rerun setup.
+              ⚠ This PoC is paused for human review. Validation did not meet the acceptance
+              threshold — inspect the Validation tab and decide whether to override or rerun setup.
             </Banner>
             <Story id="US-O10" side="left" />
           </div>
@@ -179,14 +204,27 @@ function Stepper({ status }: { status: PocStatusDetail["status"] }) {
             <div
               className={`flex flex-1 flex-col items-center gap-1.5 rounded-[8px] px-2 py-2.5 text-center ${active ? "shadow-[2px_2px_0_0_#151515]" : ""}`}
               style={{
-                background: active ? (failed ? "var(--color-flame)" : meta.color) : done ? "#eef0ea" : "transparent",
-                color: active ? (meta.fg === "#fff" || failed ? "#fff" : meta.fg) : "var(--color-ink)",
+                background: active
+                  ? failed
+                    ? "var(--color-flame)"
+                    : meta.color
+                  : done
+                    ? "#eef0ea"
+                    : "transparent",
+                color: active
+                  ? meta.fg === "#fff" || failed
+                    ? "#fff"
+                    : meta.fg
+                  : "var(--color-ink)",
                 border: active ? "2px solid var(--color-line)" : "2px solid transparent",
               }}
             >
               <span
                 className="grid h-6 w-6 place-items-center rounded-full border-2 border-[var(--color-line)] text-xs font-black"
-                style={{ background: done ? "var(--color-grass)" : active ? "#fff" : "#fff", color: "var(--color-ink)" }}
+                style={{
+                  background: done ? "var(--color-grass)" : active ? "#fff" : "#fff",
+                  color: "var(--color-ink)",
+                }}
               >
                 {done ? "✓" : i + 1}
               </span>
@@ -244,14 +282,25 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
               {events.map((e, i) => (
                 <div key={i} className="pop-sm p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="mono text-sm font-bold text-[var(--color-brand)]">{e.name}</span>
-                    {e.required && <span className="chip" style={{ background: "var(--color-gold)" }}>required</span>}
+                    <span className="mono text-sm font-bold text-[var(--color-brand)]">
+                      {e.name}
+                    </span>
+                    {e.required && (
+                      <span className="chip" style={{ background: "var(--color-gold)" }}>
+                        required
+                      </span>
+                    )}
                   </div>
-                  <p className="mt-1 text-[0.8rem] leading-snug text-[var(--color-ink-soft)]">{e.description}</p>
+                  <p className="mt-1 text-[0.8rem] leading-snug text-[var(--color-ink-soft)]">
+                    {e.description}
+                  </p>
                   {e.properties && e.properties.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {e.properties.map((p) => (
-                        <span key={p.name} className="mono rounded border border-[var(--color-hairline)] bg-[var(--color-cream)] px-1.5 py-0.5 text-[0.65rem]">
+                        <span
+                          key={p.name}
+                          className="mono rounded border border-[var(--color-hairline)] bg-[var(--color-cream)] px-1.5 py-0.5 text-[0.65rem]"
+                        >
                           {p.name}
                         </span>
                       ))}
@@ -269,7 +318,9 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
               {dashboards.map((d, i) => (
                 <div key={i} className="pop-sm p-3">
                   <div className="text-sm font-bold">{d.name}</div>
-                  {d.description && <p className="text-[0.8rem] text-[var(--color-muted)]">{d.description}</p>}
+                  {d.description && (
+                    <p className="text-[0.8rem] text-[var(--color-muted)]">{d.description}</p>
+                  )}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {d.tiles.map((t, j) => (
                       <span key={j} className="chip" style={{ background: "#fff" }}>
@@ -286,7 +337,11 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
         {(flags.length > 0 || surveys.length > 0 || alerts.length > 0) && (
           <Section title="Optional assets">
             <div className="grid gap-3 sm:grid-cols-3">
-              <MiniList label="Feature flags" items={flags.map((f) => f.name)} icon="feature_flag" />
+              <MiniList
+                label="Feature flags"
+                items={flags.map((f) => f.name)}
+                icon="feature_flag"
+              />
               <MiniList label="Surveys" items={surveys.map((s) => s.name)} icon="survey" />
               <MiniList label="Alerts" items={alerts.map((a) => a.name)} icon="alert" />
             </div>
@@ -300,7 +355,9 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
             <KeyVal k="Project">{plan.posthogTarget.projectName}</KeyVal>
             <KeyVal k="Region">{plan.posthogTarget.region ?? "—"}</KeyVal>
             <KeyVal k="Strategy">{plan.posthogTarget.projectStrategy.replaceAll("_", " ")}</KeyVal>
-            <KeyVal k="Plan version">v{plan.version} · {plan.status.replaceAll("_", " ")}</KeyVal>
+            <KeyVal k="Plan version">
+              v{plan.version} · {plan.status.replaceAll("_", " ")}
+            </KeyVal>
           </Section>
         )}
 
@@ -310,7 +367,11 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
             {req.customer.contacts.map((c) => (
               <KeyVal key={c.email} k={c.role ?? "Contact"}>
                 <span className="mono text-[0.8rem]">{c.email}</span>
-                {c.isPrimary && <span className="chip ml-2" style={{ background: "var(--color-gold)" }}>primary</span>}
+                {c.isPrimary && (
+                  <span className="chip ml-2" style={{ background: "var(--color-gold)" }}>
+                    primary
+                  </span>
+                )}
               </KeyVal>
             ))}
           </Section>
@@ -320,7 +381,10 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
           <Section title="Assumptions">
             <ul className="space-y-1.5 text-sm">
               {assumptions.map((a, i) => (
-                <li key={i} className="flex gap-2"><span className="text-[var(--color-muted)]">·</span>{a}</li>
+                <li key={i} className="flex gap-2">
+                  <span className="text-[var(--color-muted)]">·</span>
+                  {a}
+                </li>
               ))}
             </ul>
           </Section>
@@ -330,7 +394,10 @@ function PlanView({ poc }: { poc: PocStatusDetail }) {
           <Section title="Open questions">
             <ul className="space-y-1.5 text-sm">
               {openQuestions.map((q, i) => (
-                <li key={i} className="flex gap-2"><span className="text-[var(--color-warn)]">?</span>{q}</li>
+                <li key={i} className="flex gap-2">
+                  <span className="text-[var(--color-warn)]">?</span>
+                  {q}
+                </li>
               ))}
             </ul>
           </Section>
@@ -396,7 +463,12 @@ function SetupView({ setup }: { setup: SetupResult }) {
         <Section
           title={`Created in PostHog · ${created.length}`}
           right={
-            <a className="btn btn-sm" href={setup.posthog.projectUrl} target="_blank" rel="noreferrer">
+            <a
+              className="btn btn-sm"
+              href={setup.posthog.projectUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
               Open project ↗
             </a>
           }
@@ -418,7 +490,9 @@ function SetupView({ setup }: { setup: SetupResult }) {
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-bold">{r.name}</span>
-                        <span className="mono block truncate text-[0.65rem] text-[var(--color-muted)]">{r.id}</span>
+                        <span className="mono block truncate text-[0.65rem] text-[var(--color-muted)]">
+                          {r.id}
+                        </span>
                       </span>
                       <span className="text-[var(--color-brand)]">↗</span>
                     </a>
@@ -434,7 +508,9 @@ function SetupView({ setup }: { setup: SetupResult }) {
             <ul className="space-y-2 text-sm">
               {setup.skippedResources.map((s, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="chip" style={{ background: "var(--color-cream)" }}>{s.resource.type ?? "resource"}</span>
+                  <span className="chip" style={{ background: "var(--color-cream)" }}>
+                    {s.resource.type ?? "resource"}
+                  </span>
                   <span className="text-[var(--color-muted)]">{s.reason}</span>
                 </li>
               ))}
@@ -446,7 +522,9 @@ function SetupView({ setup }: { setup: SetupResult }) {
           <Section title="SDK instructions">
             {setup.sdkInstructions.map((s, i) => (
               <div key={i} className="mb-3">
-                <div className="mb-1 text-xs font-extrabold uppercase tracking-wide text-[var(--color-muted)]">{s.platform}</div>
+                <div className="mb-1 text-xs font-extrabold uppercase tracking-wide text-[var(--color-muted)]">
+                  {s.platform}
+                </div>
                 <pre className="overflow-auto rounded-[8px] border-2 border-[var(--color-line)] bg-[var(--color-ink)] p-3 text-[0.75rem] leading-relaxed text-[#f5f5f0]">
                   {s.markdown}
                 </pre>
@@ -459,9 +537,18 @@ function SetupView({ setup }: { setup: SetupResult }) {
       <div className="space-y-4">
         <Section title="PostHog project">
           <KeyVal k="Project">{setup.posthog.projectName}</KeyVal>
-          <KeyVal k="Project ID"><span className="mono">{setup.posthog.projectId}</span></KeyVal>
-          <KeyVal k="Host"><span className="mono text-[0.78rem]">{setup.posthog.hostUrl}</span></KeyVal>
-          <a className="btn btn-primary mt-3 w-full justify-center" href={setup.posthog.projectUrl} target="_blank" rel="noreferrer">
+          <KeyVal k="Project ID">
+            <span className="mono">{setup.posthog.projectId}</span>
+          </KeyVal>
+          <KeyVal k="Host">
+            <span className="mono text-[0.78rem]">{setup.posthog.hostUrl}</span>
+          </KeyVal>
+          <a
+            className="btn btn-primary mt-3 w-full justify-center"
+            href={setup.posthog.projectUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
             Open in PostHog ↗
           </a>
         </Section>
@@ -474,13 +561,24 @@ function SetupView({ setup }: { setup: SetupResult }) {
             {setup.credentialRefs.map((c) => (
               <div key={c.secretRef} className="pop-sm mb-2 p-3">
                 <div className="text-sm font-bold">{c.name}</div>
-                <div className="mono mt-0.5 text-[0.65rem] text-[var(--color-muted)]">{c.secretRef}</div>
+                <div className="mono mt-0.5 text-[0.65rem] text-[var(--color-muted)]">
+                  {c.secretRef}
+                </div>
                 {c.oneTimeLink && (
-                  <a className="btn btn-flame mt-2 w-full justify-center" href={c.oneTimeLink} target="_blank" rel="noreferrer">
+                  <a
+                    className="btn btn-flame mt-2 w-full justify-center"
+                    href={c.oneTimeLink}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     🔐 One-time link
                   </a>
                 )}
-                {c.expiresAt && <div className="mt-1.5 text-[0.7rem] font-semibold text-[var(--color-muted)]">Expires {c.expiresAt}</div>}
+                {c.expiresAt && (
+                  <div className="mt-1.5 text-[0.7rem] font-semibold text-[var(--color-muted)]">
+                    Expires {c.expiresAt}
+                  </div>
+                )}
               </div>
             ))}
           </Section>
@@ -490,7 +588,10 @@ function SetupView({ setup }: { setup: SetupResult }) {
           <Section title="Known gaps">
             <ul className="space-y-1.5 text-sm">
               {setup.knownGaps.map((g, i) => (
-                <li key={i} className="flex gap-2"><span className="text-[var(--color-warn)]">▲</span>{g}</li>
+                <li key={i} className="flex gap-2">
+                  <span className="text-[var(--color-warn)]">▲</span>
+                  {g}
+                </li>
               ))}
             </ul>
           </Section>
@@ -524,7 +625,14 @@ function ValidationView({ report }: { report: ValidationReport }) {
           <div className="space-y-2">
             {report.checks.map((c) => {
               const ctone = statusValidationTone(c.status === "skipped" ? undefined : c.status);
-              const icon = c.status === "pass" ? "✓" : c.status === "warn" ? "!" : c.status === "fail" ? "✕" : "–";
+              const icon =
+                c.status === "pass"
+                  ? "✓"
+                  : c.status === "warn"
+                    ? "!"
+                    : c.status === "fail"
+                      ? "✕"
+                      : "–";
               return (
                 <div key={c.id} className="pop-sm flex items-start gap-3 p-3">
                   <span
@@ -535,10 +643,21 @@ function ValidationView({ report }: { report: ValidationReport }) {
                   </span>
                   <div className="min-w-0">
                     <div className="text-sm font-bold">{c.name}</div>
-                    {c.evidence && <p className="text-[0.8rem] text-[var(--color-ink-soft)]">{c.evidence}</p>}
-                    {c.error && <p className="text-[0.8rem] font-semibold text-[var(--color-fail)]">{c.error}</p>}
+                    {c.evidence && (
+                      <p className="text-[0.8rem] text-[var(--color-ink-soft)]">{c.evidence}</p>
+                    )}
+                    {c.error && (
+                      <p className="text-[0.8rem] font-semibold text-[var(--color-fail)]">
+                        {c.error}
+                      </p>
+                    )}
                     {c.resourceRef?.url && (
-                      <a className="mono text-[0.7rem] text-[var(--color-brand)]" href={c.resourceRef.url} target="_blank" rel="noreferrer">
+                      <a
+                        className="mono text-[0.7rem] text-[var(--color-brand)]"
+                        href={c.resourceRef.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         {c.resourceRef.name} ↗
                       </a>
                     )}
@@ -555,19 +674,26 @@ function ValidationView({ report }: { report: ValidationReport }) {
           <div className="grid grid-cols-3 gap-2 text-center">
             {(["pass", "warn", "fail"] as const).map((k) => (
               <div key={k} className="pop-sm py-3" style={{ borderColor: statusValidationTone(k) }}>
-                <div className="text-xl font-extrabold" style={{ color: statusValidationTone(k) }}>{counts[k] ?? 0}</div>
+                <div className="text-xl font-extrabold" style={{ color: statusValidationTone(k) }}>
+                  {counts[k] ?? 0}
+                </div>
                 <div className="text-[0.65rem] font-bold uppercase">{k}</div>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-[var(--color-muted)]">Checked {timeAgo(report.checkedAt)}</p>
+          <p className="mt-3 text-xs text-[var(--color-muted)]">
+            Checked {timeAgo(report.checkedAt)}
+          </p>
         </Section>
 
         {report.knownGaps.length > 0 && (
           <Section title="Known gaps">
             <ul className="space-y-1.5 text-sm">
               {report.knownGaps.map((g, i) => (
-                <li key={i} className="flex gap-2"><span className="text-[var(--color-warn)]">▲</span>{g}</li>
+                <li key={i} className="flex gap-2">
+                  <span className="text-[var(--color-warn)]">▲</span>
+                  {g}
+                </li>
               ))}
             </ul>
           </Section>
@@ -586,8 +712,8 @@ function HandoffTabView({ poc, setup }: { poc: PocStatusDetail; setup: SetupResu
       <div className="space-y-4 lg:col-span-2">
         <Section title="What the customer receives">
           <p className="text-sm">
-            The handoff package bundles project links, the configured taxonomy, a testing plan mapped to
-            success criteria, validation status, and secure one-time credential links.
+            The handoff package bundles project links, the configured taxonomy, a testing plan
+            mapped to success criteria, validation status, and secure one-time credential links.
           </p>
           <Link to={`/handoff/${encodeURIComponent(poc.pocId)}`} className="btn btn-flame mt-4">
             Preview customer handoff page →
@@ -596,7 +722,11 @@ function HandoffTabView({ poc, setup }: { poc: PocStatusDetail; setup: SetupResu
 
         <Section title="Links">
           <div className="grid gap-2 sm:grid-cols-2">
-            <LinkRow label="PostHog project" url={setup.posthog.projectUrl} kind="posthog_project" />
+            <LinkRow
+              label="PostHog project"
+              url={setup.posthog.projectUrl}
+              kind="posthog_project"
+            />
             {setup.createdResources
               .filter((r) => r.type === "dashboard" && r.url)
               .map((r) => (
@@ -605,7 +735,12 @@ function HandoffTabView({ poc, setup }: { poc: PocStatusDetail; setup: SetupResu
             {setup.credentialRefs
               .filter((c) => c.oneTimeLink)
               .map((c) => (
-                <LinkRow key={c.secretRef} label={`🔐 ${c.name}`} url={c.oneTimeLink!} kind="secret" />
+                <LinkRow
+                  key={c.secretRef}
+                  label={`🔐 ${c.name}`}
+                  url={c.oneTimeLink!}
+                  kind="secret"
+                />
               ))}
           </div>
         </Section>
@@ -620,7 +755,9 @@ function HandoffTabView({ poc, setup }: { poc: PocStatusDetail; setup: SetupResu
               <KeyVal k="Teardown date">{plan.handoffPlan.teardownDate ?? "—"}</KeyVal>
             </>
           )}
-          <KeyVal k="Status"><StatusPill status={poc.status} /></KeyVal>
+          <KeyVal k="Status">
+            <StatusPill status={poc.status} />
+          </KeyVal>
         </Section>
       </div>
     </div>
@@ -629,7 +766,12 @@ function HandoffTabView({ poc, setup }: { poc: PocStatusDetail; setup: SetupResu
 
 function LinkRow({ label, url, kind }: { label: string; url: string; kind: string }) {
   return (
-    <a href={url} target="_blank" rel="noreferrer" className="pop-sm flex items-center justify-between gap-2 p-2.5 transition hover:-translate-y-0.5">
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="pop-sm flex items-center justify-between gap-2 p-2.5 transition hover:-translate-y-0.5"
+    >
       <span className="min-w-0">
         <span className="block truncate text-sm font-bold">{label}</span>
         <span className="mono block truncate text-[0.65rem] text-[var(--color-muted)]">{kind}</span>

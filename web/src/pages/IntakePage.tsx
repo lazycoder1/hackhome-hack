@@ -148,7 +148,11 @@ export function IntakePage() {
                       onChange={(e) => updateEmailDraft(e.target.value)}
                       onKeyDown={handleEmailKeyDown}
                       onBlur={commitEmailDraft}
-                      placeholder={emails.length ? "Add another..." : "dana@northwind.test, alex@northwind.test"}
+                      placeholder={
+                        emails.length
+                          ? "Add another..."
+                          : "dana@northwind.test, alex@northwind.test"
+                      }
                       className="min-w-[180px] flex-1 border-0 bg-transparent p-1.5 font-medium outline-none"
                     />
                   </div>

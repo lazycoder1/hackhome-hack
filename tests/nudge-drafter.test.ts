@@ -9,12 +9,20 @@ function plan(): PocPlan {
     version: 1,
     status: "approved",
     product: "posthog",
-    customer: { companyName: "Acme", companySlug: "acme", contacts: [{ email: "buyer@acme.test" }] },
+    customer: {
+      companyName: "Acme",
+      companySlug: "acme",
+      contacts: [{ email: "buyer@acme.test" }],
+    },
     objective: "Evaluate signup activation.",
     successCriteria: ["Track signup funnel"],
     assumptions: [],
     openQuestions: [],
-    posthogTarget: { projectId: "p1", projectName: "Acme PoC", projectStrategy: "existing_project" },
+    posthogTarget: {
+      projectId: "p1",
+      projectName: "Acme PoC",
+      projectStrategy: "existing_project",
+    },
     setup: {
       projectSettings: {},
       events: [],
@@ -48,7 +56,9 @@ function report(): PocMonitoringReport {
     riskLevel: "high",
     usageSummary: { hasRealCustomerActivity: false, syntheticOnly: false },
     eventProgress: [],
-    successCriteriaProgress: [{ criterion: "Track signup funnel", status: "not_met", evidence: [] }],
+    successCriteriaProgress: [
+      { criterion: "Track signup funnel", status: "not_met", evidence: [] },
+    ],
     planDrift: {
       missingExpectedEvents: ["signup_completed"],
       unexpectedObservedEvents: [],

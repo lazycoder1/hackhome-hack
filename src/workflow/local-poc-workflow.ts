@@ -322,18 +322,24 @@ export class LocalPocWorkflow {
     await this.store.updateStatus(input.pocId, status, this.clock().toISOString());
 
     const dashboard = latestDashboard(input.setupResult);
-    const insights = input.setupResult.createdResources.filter((resource) => resource.type === "insight");
+    const insights = input.setupResult.createdResources.filter(
+      (resource) => resource.type === "insight",
+    );
     const body = [
       `Hi ${input.plan.customer.contacts[0]?.name ?? input.plan.customer.companyName},`,
       "",
       "Yes, PostHog supports graph-heavy dashboards. I revised the dashboard based on your feedback so it leans more on charts and clearer visual comparisons instead of dense numeric tiles.",
       "",
-      dashboard?.url ? `Updated dashboard: ${dashboard.url}` : "The dashboard revision has been applied.",
+      dashboard?.url
+        ? `Updated dashboard: ${dashboard.url}`
+        : "The dashboard revision has been applied.",
       "",
       ...(insights.length
         ? [
             "Updated views:",
-            ...insights.slice(0, 6).map((insight) => `- ${insight.name}${insight.url ? `: ${insight.url}` : ""}`),
+            ...insights
+              .slice(0, 6)
+              .map((insight) => `- ${insight.name}${insight.url ? `: ${insight.url}` : ""}`),
             "",
           ]
         : []),

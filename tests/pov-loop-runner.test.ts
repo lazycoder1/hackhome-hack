@@ -36,12 +36,20 @@ function plan(): PocPlan {
     version: 1,
     status: "approved",
     product: "posthog",
-    customer: { companyName: "Acme", companySlug: "acme", contacts: [{ email: "buyer@acme.test" }] },
+    customer: {
+      companyName: "Acme",
+      companySlug: "acme",
+      contacts: [{ email: "buyer@acme.test" }],
+    },
     objective: "Evaluate signup activation analytics.",
     successCriteria: ["Track signup funnel end to end"],
     assumptions: [],
     openQuestions: [],
-    posthogTarget: { projectId: "project-1", projectName: "Acme PoC", projectStrategy: "existing_project" },
+    posthogTarget: {
+      projectId: "project-1",
+      projectName: "Acme PoC",
+      projectStrategy: "existing_project",
+    },
     setup: {
       projectSettings: {},
       events: [
@@ -68,7 +76,11 @@ function plan(): PocPlan {
 }
 
 function setupResult(): SetupResult {
-  const dashboard: PosthogResourceRef = { type: "dashboard", id: "dashboard-1", name: "PoC - Acme" };
+  const dashboard: PosthogResourceRef = {
+    type: "dashboard",
+    id: "dashboard-1",
+    name: "PoC - Acme",
+  };
   return {
     pocId: "poc_123",
     status: "succeeded",
@@ -89,7 +101,11 @@ function setupResult(): SetupResult {
 }
 
 function usageTool(snapshot: PosthogUsageSnapshot): PostHogUsageSnapshotTool {
-  return { async collectPosthogUsageSnapshot() { return snapshot; } };
+  return {
+    async collectPosthogUsageSnapshot() {
+      return snapshot;
+    },
+  };
 }
 
 const INACTIVE: PosthogUsageSnapshot = { totalEvents: 0, uniqueUsers: 0, events: [] };
@@ -108,10 +124,7 @@ const SYNTHETIC_ONLY: PosthogUsageSnapshot = {
   events: [{ eventName: "signup_started", count: 4, uniqueUsers: 1, syntheticCount: 4 }],
 };
 
-async function makeRunner(
-  snapshot: PosthogUsageSnapshot,
-  planPatch?: (p: PocPlan) => PocPlan,
-) {
+async function makeRunner(snapshot: PosthogUsageSnapshot, planPatch?: (p: PocPlan) => PocPlan) {
   const store = new InMemoryPocStore();
   await store.createPoc(record());
   await store.savePlan(planPatch ? planPatch(plan()) : plan());

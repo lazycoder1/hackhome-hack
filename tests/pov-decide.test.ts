@@ -13,7 +13,11 @@ function report(status: PocMonitoringReport["status"]): PocMonitoringReport {
     usageSummary: { hasRealCustomerActivity: false, syntheticOnly: false },
     eventProgress: [],
     successCriteriaProgress: [],
-    planDrift: { missingExpectedEvents: ["signup_completed"], unexpectedObservedEvents: [], notes: [] },
+    planDrift: {
+      missingExpectedEvents: ["signup_completed"],
+      unexpectedObservedEvents: [],
+      notes: [],
+    },
     recommendedActions: [],
   };
 }
@@ -42,9 +46,7 @@ describe("decide (deterministic DECIDE layer)", () => {
   }
 
   it("only customer-facing actions are gated", () => {
-    const gatedTypes = cases
-      .filter((entry) => entry.customerFacing)
-      .map((entry) => entry.type);
+    const gatedTypes = cases.filter((entry) => entry.customerFacing).map((entry) => entry.type);
     expect(gatedTypes).toEqual(["nudge_customer", "nudge_customer"]);
   });
 
@@ -67,7 +69,12 @@ describe("decide — PRD §10 lifecycle actions (recommendations + date routing)
         status: "at_risk",
         recommendedActions: [
           { owner: "operator", action: "offer_support", reason: "needs help", urgency: "medium" },
-          { owner: "operator", action: "revise_plan", reason: "usage drifted from the plan", urgency: "medium" },
+          {
+            owner: "operator",
+            action: "revise_plan",
+            reason: "usage drifted from the plan",
+            urgency: "medium",
+          },
         ],
       }),
     );
@@ -84,8 +91,18 @@ describe("decide — PRD §10 lifecycle actions (recommendations + date routing)
       reportWith({
         status: "criteria_met",
         recommendedActions: [
-          { owner: "operator", action: "mark_success", reason: "all signals present", urgency: "low" },
-          { owner: "operator", action: "schedule_review", reason: "evidence is fresh", urgency: "medium" },
+          {
+            owner: "operator",
+            action: "mark_success",
+            reason: "all signals present",
+            urgency: "low",
+          },
+          {
+            owner: "operator",
+            action: "schedule_review",
+            reason: "evidence is fresh",
+            urgency: "medium",
+          },
         ],
       }),
     );

@@ -26,7 +26,9 @@ export class PostHogMcpGateway implements PostHogToolGateway {
   }
 
   async getProject(projectId: string): Promise<PostHogProject> {
-    const result = asRecord(await this.toolClient.callTool("project-get", { id: projectIdArg(projectId) }));
+    const result = asRecord(
+      await this.toolClient.callTool("project-get", { id: projectIdArg(projectId) }),
+    );
 
     return {
       id: stringField(result, "id", projectId),
@@ -317,8 +319,9 @@ function parseMcpTextRecord(value: string): Record<string, unknown> {
       continue;
     }
     const rawValue = match[2].trim();
-    record[match[1]] =
-      /^-?\d+$/.test(rawValue) ? Number(rawValue) : rawValue.replace(/^"(.*)"$/, "$1");
+    record[match[1]] = /^-?\d+$/.test(rawValue)
+      ? Number(rawValue)
+      : rawValue.replace(/^"(.*)"$/, "$1");
   }
   return record;
 }
