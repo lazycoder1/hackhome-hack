@@ -61,8 +61,8 @@ export class Orchestrator {
     this.defaultStructuredHints = options.defaultStructuredHints ?? {};
     this.clock = options.clock ?? (() => new Date());
     this.idGenerator = options.idGenerator ?? (() => crypto.randomUUID());
-    this.extractionModel = options.extractionModel ?? "deepseek-v4-pro";
-    this.replyClassificationModel = options.replyClassificationModel ?? "deepseek-v4-flash";
+    this.extractionModel = options.extractionModel ?? "gpt-5.5-high";
+    this.replyClassificationModel = options.replyClassificationModel ?? "gpt-5.5-high";
   }
 
   async submitRequirementsBlob(input: SubmitRequirementsBlobInput): Promise<{

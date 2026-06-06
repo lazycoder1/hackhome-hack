@@ -5,8 +5,8 @@ export type AppConfig = {
     apiKey: string;
     baseUrl: string;
     models: {
-      pro: "deepseek-v4-pro";
-      flash: "deepseek-v4-flash";
+      pro: string;
+      flash: string;
     };
   };
 };
@@ -16,18 +16,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     loadDotenv();
   }
 
-  const apiKey = env.DEEPSEEK_API_KEY;
+  const apiKey = env.OPENAI_API_KEY ?? env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY is required");
+    throw new Error("OPENAI_API_KEY is required");
   }
 
   return {
     deepseek: {
       apiKey,
-      baseUrl: env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com",
+      baseUrl: env.OPENAI_BASE_URL ?? env.DEEPSEEK_BASE_URL ?? "https://api.openai.com/v1",
       models: {
-        pro: "deepseek-v4-pro",
-        flash: "deepseek-v4-flash",
+        pro: env.OPENAI_MODEL ?? env.LLM_MODEL_PRO ?? "gpt-5.5-high",
+        flash: env.OPENAI_FAST_MODEL ?? env.OPENAI_MODEL ?? env.LLM_MODEL_FLASH ?? "gpt-5.5-high",
       },
     },
   };

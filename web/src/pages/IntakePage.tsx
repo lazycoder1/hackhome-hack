@@ -163,8 +163,8 @@ export function IntakePage() {
 
           {error && (
             <Banner tone="danger">
-              {error.includes("DEEPSEEK") || error.includes("500")
-                ? "The orchestrator needs DEEPSEEK_API_KEY set on the backend to extract a plan. Add it to .env and restart api:start."
+              {error.includes("OPENAI") || error.includes("DEEPSEEK") || error.includes("500")
+                ? "The orchestrator needs OPENAI_API_KEY set on the backend to extract a plan. Add it to .env and restart api:start."
                 : error}
             </Banner>
           )}

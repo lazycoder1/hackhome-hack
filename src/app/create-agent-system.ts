@@ -171,6 +171,8 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     defaultStructuredHints: defaultStructuredHintsFromEnv(env),
     clock,
     idGenerator: options.idGenerator,
+    extractionModel: requiredConfig(config).deepseek.models.pro,
+    replyClassificationModel: requiredConfig(config).deepseek.models.flash,
   });
   const setupAgent = new PostHogPocSetupAgent({
     posthog,
@@ -181,6 +183,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     llm,
     audit,
     clock,
+    agenticDashboardModel: requiredConfig(config).deepseek.models.flash,
   });
   const monitoringAgent = new PocMonitoringAgent({
     store,
@@ -191,7 +194,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
   const povLoopRunner = new PovLoopRunner({
     store,
     monitoringAgent,
-    nudgeDrafter: new NudgeDrafter({ llm }),
+    nudgeDrafter: new NudgeDrafter({ llm, model: requiredConfig(config).deepseek.models.flash }),
     approval,
     email,
     operatorEmails: operatorEmailsFromEnv(env),

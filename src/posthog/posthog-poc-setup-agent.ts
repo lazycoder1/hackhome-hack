@@ -67,7 +67,7 @@ export class PostHogPocSetupAgent {
     this.eventCapture = options.eventCapture;
     this.syntheticEventVerifier = options.syntheticEventVerifier;
     this.llm = options.llm;
-    this.agenticDashboardModel = options.agenticDashboardModel ?? "deepseek-v4-flash";
+    this.agenticDashboardModel = options.agenticDashboardModel ?? "gpt-5.5-high";
     this.audit = options.audit;
     this.clock = options.clock ?? (() => new Date());
   }

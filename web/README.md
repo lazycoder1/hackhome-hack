@@ -62,7 +62,8 @@ orchestrator agent:
 
 ```bash
 # in repo root .env
-DEEPSEEK_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5.5-high
 ```
 
 Restart `npm run api:start` and the intake form will extract a real plan from pasted
