@@ -631,6 +631,51 @@ describe("createHttpApiServer", () => {
     }
   });
 
+  it("manually updates a persisted PoC status", async () => {
+    const calls: unknown[] = [];
+    const server = createHttpApiServer({
+      workflow: {
+        ...fakeWorkflow(),
+        async updatePocStatus(input) {
+          calls.push(input);
+          return {
+            pocId: input.pocId,
+            status: input.status,
+          };
+        },
+      },
+    });
+    const baseUrl = await listen(server);
+
+    try {
+      const response = await fetch(`${baseUrl}/pocs/poc_123/status`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          status: "active_poc",
+          requestedBy: "operator@example.test",
+          note: "Manual hackathon stage change",
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        pocId: "poc_123",
+        status: "active_poc",
+      });
+      expect(calls).toEqual([
+        {
+          pocId: "poc_123",
+          status: "active_poc",
+          requestedBy: "operator@example.test",
+          note: "Manual hackathon stage change",
+        },
+      ]);
+    } finally {
+      await close(server);
+    }
+  });
+
   it("returns 404 for unknown PoC status detail", async () => {
     const statusReader: PocStatusReadApi = {
       async activity() {
@@ -1000,6 +1045,9 @@ function fakeWorkflow(): WorkflowApi {
     },
     async retryPocStage() {
       throw new Error("retryPocStage was not expected");
+    },
+    async updatePocStatus() {
+      throw new Error("updatePocStatus was not expected");
     },
   };
 }

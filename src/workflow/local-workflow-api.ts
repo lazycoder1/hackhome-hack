@@ -60,6 +60,30 @@ export class LocalWorkflowApi implements WorkflowApi {
     return this.system.workflow.retryPocStage(input);
   }
 
+  async updatePocStatus(
+    input: Parameters<WorkflowApi["updatePocStatus"]>[0],
+  ): ReturnType<WorkflowApi["updatePocStatus"]> {
+    const poc = await this.system.store.getPoc(input.pocId);
+    if (!poc) {
+      throw new Error(`Unknown PoC: ${input.pocId}`);
+    }
+    const now = new Date().toISOString();
+    await this.system.store.updateStatus(input.pocId, input.status, now);
+    await this.system.tools.audit.writeAuditLog({
+      pocId: input.pocId,
+      actor: input.requestedBy ? "human" : "orchestrator",
+      action: "manual_update_poc_status",
+      target: input.requestedBy ?? input.status,
+      outputSummary: input.note ?? input.status,
+      status: "succeeded",
+      createdAt: now,
+    });
+    return {
+      pocId: input.pocId,
+      status: input.status,
+    };
+  }
+
   /** Resolve a Trigger-style approval token to its PoC via the stored `approvalTokenId`. */
   private async findPocIdByToken(tokenId: string): Promise<string | undefined> {
     const pocs = await this.system.store.listPocs({ limit: 200 });

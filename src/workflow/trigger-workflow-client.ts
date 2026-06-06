@@ -138,6 +138,12 @@ export class TriggerWorkflowClient implements WorkflowApi {
     };
   }
 
+  async updatePocStatus(
+    _input: Parameters<WorkflowApi["updatePocStatus"]>[0],
+  ): ReturnType<WorkflowApi["updatePocStatus"]> {
+    throw new Error("Manual status updates require WORKFLOW_MODE=local");
+  }
+
   private async getTask(): Promise<TriggerableTask<SubmitRequirementsBlobInput>> {
     if (this.task) {
       return this.task;

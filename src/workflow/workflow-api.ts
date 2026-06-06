@@ -31,6 +31,13 @@ export type RetryPocStageResult = {
   handoffThreadId?: string;
 };
 
+export type UpdatePocStatusInput = {
+  pocId: string;
+  status: PocLifecycleStatus;
+  requestedBy?: string;
+  note?: string;
+};
+
 export type WorkflowApi = {
   startPosthogPocWorkflow(input: SubmitRequirementsBlobInput): Promise<{ runId: string }>;
   completeApproval(input: ApprovalCompletionInput): Promise<{ success: boolean }>;
@@ -49,4 +56,8 @@ export type WorkflowApi = {
     };
   }): Promise<PocMonitoringReport>;
   retryPocStage(input: RetryPocStageInput): Promise<RetryPocStageResult>;
+  updatePocStatus(input: UpdatePocStatusInput): Promise<{
+    pocId: string;
+    status: PocLifecycleStatus;
+  }>;
 };

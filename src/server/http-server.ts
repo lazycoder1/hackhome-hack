@@ -15,6 +15,7 @@ import {
   googleTestDraftSchema,
   monitoringRunSchema,
   retryPocStageSchema,
+  updatePocStatusSchema,
 } from "./request-schemas.js";
 
 export type HttpApiServerOptions = {
@@ -232,6 +233,7 @@ async function routeRequest(
   const monitoringRunPocId = monitoringRunPocIdFromPath(url.pathname);
   const activityPocId = activityPocIdFromPath(url.pathname);
   const retryPocId = retryPocIdFromPath(url.pathname);
+  const statusUpdatePocId = statusUpdatePocIdFromPath(url.pathname);
 
   if (method === "GET" && activityPocId) {
     if (!options.statusReader) {
@@ -304,6 +306,18 @@ async function routeRequest(
       requestedBy: body.requestedBy,
     });
     sendJson(response, 202, result);
+    return;
+  }
+
+  if (method === "POST" && statusUpdatePocId) {
+    const body = parseBody(await readRawBody(request), updatePocStatusSchema);
+    const result = await workflow.updatePocStatus({
+      pocId: statusUpdatePocId,
+      status: body.status,
+      requestedBy: body.requestedBy,
+      note: body.note,
+    });
+    sendJson(response, 200, result);
     return;
   }
 
@@ -504,6 +518,11 @@ function pocIdFromPath(pathname: string): string | undefined {
 
 function retryPocIdFromPath(pathname: string): string | undefined {
   const match = /^\/pocs\/([^/]+)\/retry$/.exec(pathname);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+function statusUpdatePocIdFromPath(pathname: string): string | undefined {
+  const match = /^\/pocs\/([^/]+)\/status$/.exec(pathname);
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 

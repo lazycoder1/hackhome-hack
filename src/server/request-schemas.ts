@@ -76,6 +76,38 @@ export const retryPocStageSchema = z.object({
   requestedBy: z.string().optional(),
 });
 
+const pocLifecycleStatusSchema = z.enum([
+  "intake_received",
+  "requirements_extracted",
+  "needs_clarification",
+  "confirmation_sent",
+  "approved",
+  "rejected",
+  "setup_queued",
+  "setup_running",
+  "validation_running",
+  "handoff_ready",
+  "handoff_sent",
+  "handoff_sent_with_gaps",
+  "dashboard_revision_requested",
+  "active_poc",
+  "monitoring_running",
+  "monitoring_at_risk",
+  "monitoring_criteria_met",
+  "needs_human_review",
+  "failed",
+  "completed",
+  "teardown_queued",
+  "teardown_complete",
+]);
+
+/** Body for `POST /pocs/:pocId/status` — manually updates the visible PoC stage. */
+export const updatePocStatusSchema = z.object({
+  status: pocLifecycleStatusSchema,
+  requestedBy: z.string().optional(),
+  note: z.string().optional(),
+});
+
 /** Body for `POST /email/inbound/gmail-mcp` — accepts a Gmail MCP read-email result. */
 export const gmailMcpInboundSchema = z.object({
   pocId: z.string().optional(),
