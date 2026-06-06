@@ -63,7 +63,7 @@ orchestrator agent:
 ```bash
 # in repo root .env
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-5.5-high
+OPENAI_MODEL=gpt-5.5
 ```
 
 Restart `npm run api:start` and the intake form will extract a real plan from pasted

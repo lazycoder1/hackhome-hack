@@ -26,8 +26,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       apiKey,
       baseUrl: env.OPENAI_BASE_URL ?? env.DEEPSEEK_BASE_URL ?? "https://api.openai.com/v1",
       models: {
-        pro: env.OPENAI_MODEL ?? env.LLM_MODEL_PRO ?? "gpt-5.5-high",
-        flash: env.OPENAI_FAST_MODEL ?? env.OPENAI_MODEL ?? env.LLM_MODEL_FLASH ?? "gpt-5.5-high",
+        pro: env.OPENAI_MODEL ?? env.LLM_MODEL_PRO ?? "gpt-5.5",
+        flash: env.OPENAI_FAST_MODEL ?? env.OPENAI_MODEL ?? env.LLM_MODEL_FLASH ?? "gpt-5.5",
       },
     },
   };

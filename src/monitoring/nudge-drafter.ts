@@ -26,7 +26,7 @@ export class NudgeDrafter {
 
   constructor(options: NudgeDrafterOptions) {
     this.llm = options.llm;
-    this.model = options.model ?? "gpt-5.5-high";
+    this.model = options.model ?? "gpt-5.5";
   }
 
   async draftCustomerAction(input: {

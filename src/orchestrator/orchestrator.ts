@@ -61,8 +61,8 @@ export class Orchestrator {
     this.defaultStructuredHints = options.defaultStructuredHints ?? {};
     this.clock = options.clock ?? (() => new Date());
     this.idGenerator = options.idGenerator ?? (() => crypto.randomUUID());
-    this.extractionModel = options.extractionModel ?? "gpt-5.5-high";
-    this.replyClassificationModel = options.replyClassificationModel ?? "gpt-5.5-high";
+    this.extractionModel = options.extractionModel ?? "gpt-5.5";
+    this.replyClassificationModel = options.replyClassificationModel ?? "gpt-5.5";
   }
 
   async submitRequirementsBlob(input: SubmitRequirementsBlobInput): Promise<{

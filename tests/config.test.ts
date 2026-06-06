@@ -8,8 +8,8 @@ describe("loadConfig", () => {
 
     expect(config.deepseek.apiKey).toBe("test-key");
     expect(config.deepseek.baseUrl).toBe("https://api.openai.com/v1");
-    expect(config.deepseek.models.pro).toBe("gpt-5.5-high");
-    expect(config.deepseek.models.flash).toBe("gpt-5.5-high");
+    expect(config.deepseek.models.pro).toBe("gpt-5.5");
+    expect(config.deepseek.models.flash).toBe("gpt-5.5");
   });
 
   it("requires an OpenAI API key", () => {

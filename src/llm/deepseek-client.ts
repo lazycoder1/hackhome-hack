@@ -43,6 +43,7 @@ export class DeepSeekClient implements LlmJsonClient {
           { role: "user", content: input.user },
         ],
         ...(supportsTemperature(input.model) ? { temperature: input.temperature ?? 0 } : {}),
+        ...(input.model.startsWith("gpt-5.5") ? { reasoning_effort: "high" } : {}),
         response_format: { type: "json_object" },
       }),
     });

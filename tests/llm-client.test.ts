@@ -51,7 +51,7 @@ describe("DeepSeekClient", () => {
     });
   });
 
-  it("omits temperature for GPT-5.5 models", async () => {
+  it("uses high reasoning and omits temperature for GPT-5.5 models", async () => {
     const requests: unknown[] = [];
     const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
       requests.push({ url: String(url), init });
@@ -70,7 +70,7 @@ describe("DeepSeekClient", () => {
     });
 
     await client.completeJson({
-      model: "gpt-5.5-high",
+      model: "gpt-5.5",
       system: "Return JSON only.",
       user: "Say ok.",
       temperature: 0.3,
@@ -79,7 +79,8 @@ describe("DeepSeekClient", () => {
     const request = requests[0] as { init: RequestInit };
     const body = JSON.parse(String(request.init.body));
     expect(body).toMatchObject({
-      model: "gpt-5.5-high",
+      model: "gpt-5.5",
+      reasoning_effort: "high",
       response_format: { type: "json_object" },
     });
     expect(body).not.toHaveProperty("temperature");
