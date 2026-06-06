@@ -17,6 +17,7 @@ export type PostHogPocSetupAgentOptions = {
   syntheticEventVerifier?: PostHogSyntheticEventVerifier;
   llm?: LlmJsonClient;
   agenticDashboardModel?: string;
+  requireAgenticDashboard?: boolean;
   audit: AuditTool;
   clock?: () => Date;
 };
@@ -57,6 +58,7 @@ export class PostHogPocSetupAgent {
   private readonly syntheticEventVerifier?: PostHogSyntheticEventVerifier;
   private readonly llm?: LlmJsonClient;
   private readonly agenticDashboardModel: string;
+  private readonly requireAgenticDashboard: boolean;
   private readonly audit: AuditTool;
   private readonly clock: () => Date;
 
@@ -67,7 +69,8 @@ export class PostHogPocSetupAgent {
     this.eventCapture = options.eventCapture;
     this.syntheticEventVerifier = options.syntheticEventVerifier;
     this.llm = options.llm;
-    this.agenticDashboardModel = options.agenticDashboardModel ?? "gpt-5.5";
+    this.agenticDashboardModel = options.agenticDashboardModel ?? "deepseek-v4-flash";
+    this.requireAgenticDashboard = options.requireAgenticDashboard ?? false;
     this.audit = options.audit;
     this.clock = options.clock ?? (() => new Date());
   }
@@ -162,6 +165,11 @@ export class PostHogPocSetupAgent {
             reason: "No LLM-generated dashboard tile queries validated; using approved fallback dashboard instead.",
             resource: { type: "dashboard", name: dashboard.name },
           });
+          if (this.requireAgenticDashboard) {
+            throw new Error(
+              `Agentic dashboard planning produced no validated tiles for "${dashboard.name}"`,
+            );
+          }
         }
 
         const dashboardRef = await createOrUseExistingResource({
@@ -186,12 +194,13 @@ export class PostHogPocSetupAgent {
         dashboards.push(dashboardRef);
         createdResources.push(dashboardRef);
 
-        const hardcodedTiles = hardcodedConvincedWidgetDashboardTiles(plan);
         const tiles =
-          hardcodedTiles ??
-          (validatedTiles?.length
+          validatedTiles?.length
             ? validatedTiles.map(agenticTileForCreation)
-            : dashboardTiles(dashboard.tiles, plan.setup.events));
+            : dashboardTiles(dashboard.tiles, plan.setup.events);
+        if (this.requireAgenticDashboard && !validatedTiles?.length) {
+          throw new Error(`Agentic dashboard planning was unavailable for "${dashboard.name}"`);
+        }
         for (const tile of tiles) {
           const insight = await createOrUseExistingResource({
             type: "insight",
@@ -475,13 +484,6 @@ export class PostHogPocSetupAgent {
     projectId: string;
     knownGaps: string[];
   }): Promise<AgenticDashboardSpec | undefined> {
-    if (process.env.POSTHOG_AGENTIC_DASHBOARD !== "1") {
-      input.knownGaps.push(
-        "Agentic dashboard planning skipped; setup used deterministic approved dashboard tiles.",
-      );
-      return undefined;
-    }
-
     if (!this.llm || !this.posthog.executeSql) {
       return undefined;
     }
@@ -494,7 +496,10 @@ export class PostHogPocSetupAgent {
           "You design PostHog PoC dashboards for pre-sales pilots.",
           "Return JSON only. Do not hardcode guessed event names when live evidence is provided.",
           "Use the buyer's business goal, success criteria, open questions, and PostHog evidence.",
-          "If business definitions are missing, set clarificationRequired true and ask concise business-language questions.",
+          "The plan is already approved, so do not block setup on business clarification unless no useful dashboard can be created at all.",
+          "When a business definition is uncertain, make the best defensible assumption, include it in notes, and still create dashboard tiles.",
+          "Create graph/chart/table tiles that a PM can read directly. Prefer 4 to 8 useful tiles over generic event-count cards.",
+          "Set clarificationRequired false whenever you can create at least one meaningful dashboard tile from the plan and evidence.",
           "Do not ask technical questions about SQL, MCP, schemas, implementation, or dashboard widget types.",
           "Choose a distinct dashboardName that can coexist with earlier generic or synthetic setup dashboards. Make the name PM/business-oriented and include the PoC id suffix when useful.",
           "Every tile must include validationSql and insightQuery.",
@@ -675,190 +680,6 @@ function agenticTileForCreation(tile: AgenticDashboardTile): DashboardTileForCre
     type: "other",
     sourceEvents: [],
     insightQuery: tile.insightQuery,
-  };
-}
-
-function hardcodedConvincedWidgetDashboardTiles(
-  plan: PocPlan,
-): DashboardTileForCreation[] | undefined {
-  const text = [
-    plan.customer.companyName,
-    plan.customer.companySlug,
-    plan.objective,
-    ...plan.successCriteria,
-  ]
-    .join(" ")
-    .toLowerCase();
-  if (!/convinced|enmovil|bizom|widget/.test(text)) {
-    return undefined;
-  }
-
-  const filters = `
-timestamp >= now() - INTERVAL 30 DAY
-AND NOT multiSearchAnyCaseInsensitive(coalesce(toString(properties['$current_url']), ''), ['localhost', 'smoke-test', 'synthetic', 'admin', 'staging', 'marketing-preview', 'pageUrl=preview', 'demo-clones.vercel.app', 'wpcomstaging.com', 'elementor-preview', 'preview=true', 'preview_id', 'preview_nonce', 'customize_messenger_channel=preview', 'wp-admin'])
-`.trim();
-  const orgExpr = `
-if(
-  notEmpty(coalesce(toString(properties['orgSlug']), '')),
-  lower(toString(properties['orgSlug'])),
-  if(
-    multiSearchAnyCaseInsensitive(concat(coalesce(toString(properties['$pathname']), ''), ' ', coalesce(toString(properties['$current_url']), '')), ['enmovil']),
-    'enmovil',
-    if(
-      multiSearchAnyCaseInsensitive(concat(coalesce(toString(properties['$pathname']), ''), ' ', coalesce(toString(properties['$current_url']), '')), ['bizom']),
-      'bizom',
-      'unknown'
-    )
-  )
-)
-`.trim();
-  const pageExpr = `
-coalesce(nullIf(toString(properties['$pathname']), ''), nullIf(toString(properties['$current_url']), ''), 'unknown')
-`.trim();
-  const sessionExpr = `
-coalesce(nullIf(toString(properties['$session_id']), ''), nullIf(toString(properties['sessionId']), ''), distinct_id)
-`.trim();
-  const voicePredicate = `(event LIKE 'voice_only.%' OR event LIKE 'voice_widget.%')`;
-  const productionEventPredicate = `(event = '$pageview' OR event = 'widget_email_submitted' OR event = 'voice_only.demo_request_submitted' OR ${voicePredicate})`;
-
-  return [
-    hogqlTile(
-      "Top widget pages by production sessions",
-      "Which Enmovil and Bizom pages get the most widget usage.",
-      `
-SELECT
-  ${orgExpr} AS org,
-  ${pageExpr} AS page,
-  uniq(${sessionExpr}) AS sessions,
-  countIf(event = '$pageview') AS pageviews,
-  countIf(${voicePredicate}) AS voice_events
-FROM events
-WHERE ${filters}
-  AND ${productionEventPredicate}
-  AND ${orgExpr} IN ('enmovil', 'bizom')
-GROUP BY org, page
-ORDER BY sessions DESC
-LIMIT 100
-`.trim(),
-    ),
-    hogqlTile(
-      "Landing page conversion",
-      "Which pages convert into email captures or demo requests.",
-      `
-SELECT
-  ${orgExpr} AS org,
-  ${pageExpr} AS page,
-  uniq(${sessionExpr}) AS sessions,
-  countIf(event = 'widget_email_submitted') AS email_captures,
-  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests,
-  round(100 * email_captures / greatest(sessions, 1), 2) AS email_capture_rate,
-  round(100 * demo_requests / greatest(sessions, 1), 2) AS demo_request_rate
-FROM events
-WHERE ${filters}
-  AND ${productionEventPredicate}
-  AND ${orgExpr} IN ('enmovil', 'bizom')
-GROUP BY org, page
-ORDER BY demo_requests DESC, email_captures DESC, sessions DESC
-LIMIT 100
-`.trim(),
-    ),
-    hogqlTile(
-      "Zero-conversion watchlist",
-      "Where adoption is weak despite sessions.",
-      `
-SELECT
-  ${orgExpr} AS org,
-  ${pageExpr} AS page,
-  uniq(${sessionExpr}) AS sessions,
-  countIf(event = 'widget_email_submitted') AS email_captures,
-  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests
-FROM events
-WHERE ${filters}
-  AND ${productionEventPredicate}
-  AND ${orgExpr} IN ('enmovil', 'bizom')
-GROUP BY org, page
-HAVING sessions >= 5 AND email_captures = 0 AND demo_requests = 0
-ORDER BY sessions DESC
-LIMIT 100
-`.trim(),
-    ),
-    hogqlTile(
-      "Campaign token performance",
-      "Campaign tokens ranked by sessions and conversion.",
-      `
-SELECT
-  ${orgExpr} AS org,
-  coalesce(nullIf(toString(properties['campaignToken']), ''), nullIf(toString(properties['campaign_token']), ''), nullIf(toString(properties['utm_campaign']), ''), 'unknown') AS campaign_token,
-  uniq(${sessionExpr}) AS sessions,
-  countIf(event = 'widget_email_submitted') AS email_captures,
-  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests,
-  round(100 * (email_captures + demo_requests) / greatest(sessions, 1), 2) AS total_conversion_rate
-FROM events
-WHERE ${filters}
-  AND ${productionEventPredicate}
-  AND ${orgExpr} IN ('enmovil', 'bizom')
-GROUP BY org, campaign_token
-ORDER BY sessions DESC, total_conversion_rate DESC
-LIMIT 100
-`.trim(),
-    ),
-    hogqlTile(
-      "Chat vs voice split",
-      "Overall usage and conversion split by chat versus voice.",
-      `
-SELECT
-  ${orgExpr} AS org,
-  if(${voicePredicate}, 'voice', 'chat') AS channel,
-  uniq(${sessionExpr}) AS sessions,
-  countIf(event = 'widget_email_submitted') AS email_captures,
-  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests
-FROM events
-WHERE ${filters}
-  AND ${productionEventPredicate}
-  AND ${orgExpr} IN ('enmovil', 'bizom')
-GROUP BY org, channel
-ORDER BY org, sessions DESC
-LIMIT 100
-`.trim(),
-    ),
-    hogqlTile(
-      "Daily production trend",
-      "Daily sessions, email captures, and demo requests after preview/staging filtering.",
-      `
-SELECT
-  toDate(timestamp) AS day,
-  ${orgExpr} AS org,
-  uniq(${sessionExpr}) AS sessions,
-  countIf(event = 'widget_email_submitted') AS email_captures,
-  countIf(event = 'voice_only.demo_request_submitted') AS demo_requests
-FROM events
-WHERE ${filters}
-  AND ${productionEventPredicate}
-  AND ${orgExpr} IN ('enmovil', 'bizom')
-GROUP BY day, org
-ORDER BY day ASC, org ASC
-LIMIT 100
-`.trim(),
-    ),
-  ];
-}
-
-function hogqlTile(
-  title: string,
-  _description: string,
-  query: string,
-): DashboardTileForCreation {
-  return {
-    title,
-    type: "other",
-    sourceEvents: [],
-    insightQuery: {
-      kind: "DataVisualizationNode",
-      source: {
-        kind: "HogQLQuery",
-        query,
-      },
-    },
   };
 }
 

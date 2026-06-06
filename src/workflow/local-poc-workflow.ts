@@ -27,6 +27,7 @@ export type LocalPocWorkflowOptions = {
       changes: string[];
     }>;
   };
+  setupTimeoutMs?: number;
   clock?: () => Date;
 };
 
@@ -38,6 +39,7 @@ export class LocalPocWorkflow {
   private readonly email: EmailTool;
   private readonly audit: AuditTool;
   private readonly replyProcessor?: LocalPocWorkflowOptions["replyProcessor"];
+  private readonly setupTimeoutMs: number;
   private readonly clock: () => Date;
 
   constructor(options: LocalPocWorkflowOptions) {
@@ -48,6 +50,7 @@ export class LocalPocWorkflow {
     this.email = options.email;
     this.audit = options.audit;
     this.replyProcessor = options.replyProcessor;
+    this.setupTimeoutMs = options.setupTimeoutMs ?? Number(process.env.POC_SETUP_TIMEOUT_MS ?? 180000);
     this.clock = options.clock ?? (() => new Date());
   }
 
@@ -245,7 +248,11 @@ export class LocalPocWorkflow {
 
   private async runSetup(pocId: string, plan: PocPlan): Promise<SetupResult> {
     await this.store.updateStatus(pocId, "setup_running", this.clock().toISOString());
-    const setupResult = await this.setupAgent.setup(plan);
+    const setupResult = await withTimeout(
+      this.setupAgent.setup(plan),
+      this.setupTimeoutMs,
+      () => timedOutSetupResult(plan, this.setupTimeoutMs, this.clock().toISOString()),
+    );
     await this.store.saveSetupResult(setupResult);
 
     if (setupResult.status === "failed") {
@@ -410,6 +417,63 @@ export class LocalPocWorkflow {
       createdAt: this.clock().toISOString(),
     });
   }
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => T,
+): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeout = setTimeout(() => resolve(onTimeout()), timeoutMs);
+    timeout.unref?.();
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+function timedOutSetupResult(plan: PocPlan, timeoutMs: number, checkedAt: string): SetupResult {
+  const projectId = plan.posthogTarget.projectId ?? "";
+  const knownGap = `PostHog setup timed out after ${timeoutMs}ms`;
+  return {
+    pocId: plan.pocId,
+    status: "failed",
+    posthog: {
+      organizationId: plan.posthogTarget.organizationId,
+      projectId,
+      projectName: plan.posthogTarget.projectName,
+      projectUrl: plan.posthogTarget.projectUrl ?? "",
+      hostUrl: "",
+    },
+    createdResources: [],
+    updatedResources: [],
+    skippedResources: [],
+    credentialRefs: [],
+    sdkInstructions: [],
+    knownGaps: [knownGap],
+    validationReport: {
+      pocId: plan.pocId,
+      status: "fail",
+      checkedAt,
+      checks: [
+        {
+          id: "setup-timeout",
+          name: "PostHog setup completed before timeout",
+          status: "fail",
+          error: knownGap,
+        },
+      ],
+      summary: "PostHog setup timed out before completion.",
+      knownGaps: [knownGap],
+    },
+    auditEventIds: [],
+  };
 }
 
 function setupClarificationQuestions(setupResult: SetupResult): string[] {

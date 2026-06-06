@@ -213,4 +213,20 @@ describe("HttpMcpToolClient", () => {
 
     await expect(client.callTool("create_draft", {})).resolves.toEqual({ ok: true });
   });
+
+  it("fails fast when an MCP request times out", async () => {
+    const client = new HttpMcpToolClient({
+      endpoint: "https://mcp.posthog.com/mcp",
+      timeoutMs: 1,
+      fetchImpl: async (_url, init) => {
+        await new Promise((resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          setTimeout(resolve, 100);
+        });
+        return new Response("{}", { status: 200 });
+      },
+    });
+
+    await expect(client.callTool("project-get", {})).rejects.toThrow(/MCP initialize timed out/);
+  });
 });

@@ -85,4 +85,27 @@ describe("DeepSeekClient", () => {
     });
     expect(body).not.toHaveProperty("temperature");
   });
+
+  it("fails fast when an LLM request times out", async () => {
+    const client = new DeepSeekClient({
+      apiKey: "test-key",
+      baseUrl: "https://api.deepseek.com",
+      timeoutMs: 1,
+      fetchImpl: async (_url, init) => {
+        await new Promise((resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          setTimeout(resolve, 100);
+        });
+        return new Response("{}", { status: 200 });
+      },
+    });
+
+    await expect(
+      client.completeJson({
+        model: "deepseek-v4-flash",
+        system: "Return JSON.",
+        user: "Return JSON.",
+      }),
+    ).rejects.toThrow(/LLM request timed out/);
+  });
 });

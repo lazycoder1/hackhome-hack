@@ -19,6 +19,7 @@ export type HttpMcpToolClientOptions = {
   projectId?: string;
   extraHeaders?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
 };
 
 export class HttpMcpToolClient implements McpToolClient {
@@ -29,6 +30,7 @@ export class HttpMcpToolClient implements McpToolClient {
   private readonly projectId?: string;
   private readonly extraHeaders: Record<string, string | undefined>;
   private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
   private sessionIdPromise?: Promise<string | undefined>;
   private nextId = 1;
 
@@ -40,12 +42,13 @@ export class HttpMcpToolClient implements McpToolClient {
     this.projectId = options.projectId;
     this.extraHeaders = options.extraHeaders ?? {};
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? Number(process.env.MCP_TIMEOUT_MS ?? 30000);
   }
 
   async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
     const sessionId = await this.ensureSession();
     const id = this.nextId++;
-    const response = await this.fetchImpl(this.endpoint, {
+    const response = await this.fetchJsonRpc(`${name} tool call`, {
       method: "POST",
       headers: await this.headers(sessionId),
       body: JSON.stringify({
@@ -81,7 +84,7 @@ export class HttpMcpToolClient implements McpToolClient {
 
   private async initializeSession(): Promise<string | undefined> {
     const id = this.nextId++;
-    const response = await this.fetchImpl(this.endpoint, {
+    const response = await this.fetchJsonRpc("initialize", {
       method: "POST",
       headers: await this.headers(),
       body: JSON.stringify({
@@ -116,7 +119,7 @@ export class HttpMcpToolClient implements McpToolClient {
   }
 
   private async sendInitializedNotification(sessionId: string | undefined): Promise<void> {
-    const response = await this.fetchImpl(this.endpoint, {
+    const response = await this.fetchJsonRpc("initialized notification", {
       method: "POST",
       headers: await this.headers(sessionId),
       body: JSON.stringify({
@@ -160,6 +163,20 @@ export class HttpMcpToolClient implements McpToolClient {
     }
 
     return headers;
+  }
+
+  private async fetchJsonRpc(label: string, init: RequestInit): Promise<Response> {
+    try {
+      return await this.fetchImpl(this.endpoint, {
+        ...init,
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    } catch (error) {
+      if ((error as Error).name === "TimeoutError" || (error as Error).name === "AbortError") {
+        throw new Error(`MCP ${label} timed out after ${this.timeoutMs}ms`);
+      }
+      throw error;
+    }
   }
 }
 

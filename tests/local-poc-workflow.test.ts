@@ -107,17 +107,11 @@ describe("LocalPocWorkflow", () => {
     const email = new InMemoryEmailTool({ clock });
     const approval = new InMemoryApprovalTool({ baseApprovalUrl: "https://approve.test", clock });
     const audit = new InMemoryAuditTool({ clock });
+    let llmCallCount = 0;
     const llm: LlmJsonClient = {
-      async completeJson(input) {
-        if (input.model === "deepseek-v4-flash") {
-          return {
-            intent: "approved",
-            confidence: 0.98,
-            extractedChanges: [],
-            requiresHumanReview: false,
-          };
-        }
-
+      async completeJson() {
+        llmCallCount += 1;
+        if (llmCallCount === 1) {
         return {
           customer: {
             companyName: "Acme",
@@ -144,6 +138,14 @@ describe("LocalPocWorkflow", () => {
           },
           assumptions: [],
           openQuestions: [],
+        };
+        }
+
+        return {
+          intent: "approved",
+          confidence: 0.98,
+          extractedChanges: [],
+          requiresHumanReview: false,
         };
       },
     };

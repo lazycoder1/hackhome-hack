@@ -109,6 +109,10 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
       apiKey: requiredConfig(config).deepseek.apiKey,
       baseUrl: requiredConfig(config).deepseek.baseUrl,
     });
+  const llmModels = config?.deepseek.models ?? {
+    pro: "deepseek-v4-flash",
+    flash: "deepseek-v4-flash",
+  };
   const email =
     options.email ??
     (emailMode === "gmail_api"
@@ -136,6 +140,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     (options.posthogMode === "mcp" || (!options.posthogMode && env.POSTHOG_MCP_API_KEY)
       ? new PostHogMcpGateway()
       : new InMemoryPostHogGateway());
+  const usesPostHogMcp = !(posthog instanceof InMemoryPostHogGateway);
   const shouldUseHttpEventCapture =
     options.eventCaptureMode === "posthog_http" ||
     (!options.eventCaptureMode && Boolean(env.POSTHOG_PROJECT_API_KEY));
@@ -171,8 +176,8 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     defaultStructuredHints: defaultStructuredHintsFromEnv(env),
     clock,
     idGenerator: options.idGenerator,
-    extractionModel: requiredConfig(config).deepseek.models.pro,
-    replyClassificationModel: requiredConfig(config).deepseek.models.flash,
+    extractionModel: llmModels.pro,
+    replyClassificationModel: llmModels.flash,
   });
   const setupAgent = new PostHogPocSetupAgent({
     posthog,
@@ -183,7 +188,10 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     llm,
     audit,
     clock,
-    agenticDashboardModel: requiredConfig(config).deepseek.models.flash,
+    agenticDashboardModel: llmModels.flash,
+    requireAgenticDashboard: env.POSTHOG_REQUIRE_AGENTIC_DASHBOARD
+      ? env.POSTHOG_REQUIRE_AGENTIC_DASHBOARD !== "0"
+      : usesPostHogMcp && Boolean(llm),
   });
   const monitoringAgent = new PocMonitoringAgent({
     store,
@@ -194,7 +202,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
   const povLoopRunner = new PovLoopRunner({
     store,
     monitoringAgent,
-    nudgeDrafter: new NudgeDrafter({ llm, model: requiredConfig(config).deepseek.models.flash }),
+    nudgeDrafter: new NudgeDrafter({ llm, model: llmModels.flash }),
     approval,
     email,
     operatorEmails: operatorEmailsFromEnv(env),
@@ -209,6 +217,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     email,
     audit,
     replyProcessor: orchestrator,
+    setupTimeoutMs: Number(env.POC_SETUP_TIMEOUT_MS ?? 180000),
     clock,
   });
 

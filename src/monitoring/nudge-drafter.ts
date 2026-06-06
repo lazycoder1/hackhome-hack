@@ -26,7 +26,7 @@ export class NudgeDrafter {
 
   constructor(options: NudgeDrafterOptions) {
     this.llm = options.llm;
-    this.model = options.model ?? "gpt-5.5";
+    this.model = options.model ?? "deepseek-v4-flash";
   }
 
   async draftCustomerAction(input: {
