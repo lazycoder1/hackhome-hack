@@ -108,10 +108,13 @@ const SYNTHETIC_ONLY: PosthogUsageSnapshot = {
   events: [{ eventName: "signup_started", count: 4, uniqueUsers: 1, syntheticCount: 4 }],
 };
 
-async function makeRunner(snapshot: PosthogUsageSnapshot) {
+async function makeRunner(
+  snapshot: PosthogUsageSnapshot,
+  planPatch?: (p: PocPlan) => PocPlan,
+) {
   const store = new InMemoryPocStore();
   await store.createPoc(record());
-  await store.savePlan(plan());
+  await store.savePlan(planPatch ? planPatch(plan()) : plan());
   await store.saveSetupResult(setupResult());
 
   const monitoringAgent = new PocMonitoringAgent({
@@ -184,6 +187,24 @@ describe("PovLoopRunner (always-on loop)", () => {
 
     const events = await store.listActivityEvents("poc_123");
     expect(events.some((event) => event.kind === "action_sent")).toBe(true);
+    expect(events.some((event) => event.kind === "action_gated")).toBe(false);
+    expect(events.some((event) => event.kind === "llm_activated")).toBe(false);
+  });
+
+  it("criteria_met with a past teardown date: records schedule_review + prepare_teardown internally, still no gate", async () => {
+    const { store, runner } = await makeRunner(ACTIVE, (p) => ({
+      ...p,
+      handoffPlan: { ...p.handoffPlan, teardownDate: "2026-06-01T00:00:00.000Z" },
+    }));
+    await runner.runTick("poc_123");
+
+    const events = await store.listActivityEvents("poc_123", { limit: 200 });
+    const internalTypes = events
+      .filter((event) => event.kind === "action_sent")
+      .map((event) => (event.payload as { actionType?: string } | undefined)?.actionType);
+    expect(internalTypes).toContain("capture_success");
+    expect(internalTypes).toContain("schedule_review");
+    expect(internalTypes).toContain("prepare_teardown");
     expect(events.some((event) => event.kind === "action_gated")).toBe(false);
     expect(events.some((event) => event.kind === "llm_activated")).toBe(false);
   });
