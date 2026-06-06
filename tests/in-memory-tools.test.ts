@@ -47,7 +47,9 @@ describe("in-memory tools", () => {
       idempotencyKey: "poc:poc_123:approval:v1",
     });
 
-    expect(waitpoint.publicApprovalUrl).toBe("https://approve.test/approval-token-1");
+    expect(waitpoint.publicApprovalUrl).toBe(
+      "https://approve.test/?tokenId=approval-token-1&publicAccessToken=local",
+    );
     expect(
       await approval.completeApprovalWaitpoint({
         tokenId: waitpoint.tokenId,
@@ -84,8 +86,11 @@ describe("in-memory tools", () => {
     });
 
     expect(duplicate.tokenId).toBe(first.tokenId);
+    expect(duplicate.publicApprovalUrl).toBe(first.publicApprovalUrl);
     expect(revised.tokenId).toBe("approval-token-2");
-    expect(revised.publicApprovalUrl).toBe("https://approve.test/approval-token-2");
+    expect(revised.publicApprovalUrl).toBe(
+      "https://approve.test/?tokenId=approval-token-2&publicAccessToken=local",
+    );
   });
 
   it("stores secrets behind one-time links without putting raw values in the URL", async () => {

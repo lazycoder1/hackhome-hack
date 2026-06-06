@@ -128,7 +128,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
   const approval =
     options.approval ??
     (options.approvalMode === "local"
-      ? new InMemoryApprovalTool({ clock })
+      ? new InMemoryApprovalTool({ baseApprovalUrl: env.APPROVAL_BASE_URL, clock })
       : new TriggerApprovalTool({ baseApprovalUrl: env.APPROVAL_BASE_URL }));
   const audit = options.audit ?? new StoreBackedAuditTool({ store, clock });
   const posthog =

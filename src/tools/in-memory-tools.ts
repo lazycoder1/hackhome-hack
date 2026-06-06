@@ -149,7 +149,7 @@ export class InMemoryApprovalTool implements ApprovalTool {
     if (existing) {
       return {
         tokenId: existing.tokenId,
-        publicApprovalUrl: `${this.baseApprovalUrl}/${existing.tokenId}`,
+        publicApprovalUrl: this.approvalUrl(existing.tokenId),
         expiresAt: existing.expiresAt,
       };
     }
@@ -166,9 +166,16 @@ export class InMemoryApprovalTool implements ApprovalTool {
 
     return {
       tokenId,
-      publicApprovalUrl: `${this.baseApprovalUrl}/${tokenId}`,
+      publicApprovalUrl: this.approvalUrl(tokenId),
       expiresAt,
     };
+  }
+
+  private approvalUrl(tokenId: string): string {
+    const url = new URL(this.baseApprovalUrl);
+    url.searchParams.set("tokenId", tokenId);
+    url.searchParams.set("publicAccessToken", "local");
+    return url.toString();
   }
 
   async completeApprovalWaitpoint(input: {
