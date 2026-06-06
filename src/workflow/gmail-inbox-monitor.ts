@@ -130,6 +130,9 @@ export class GmailInboxMonitor {
     if (detail?.status && !canProcessReplyForStatus(detail.status)) {
       return false;
     }
+    if (detail && !detail.hasActivePlan) {
+      return false;
+    }
     const contactEmails = detail?.requirements?.customer.contacts
       .map((contact) => contact.email.toLowerCase())
       .filter(Boolean);

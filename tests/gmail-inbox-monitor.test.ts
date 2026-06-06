@@ -244,4 +244,94 @@ describe("GmailInboxMonitor", () => {
       },
     ]);
   });
+
+  it("skips confirmation-thread replies when the PoC has no active plan", async () => {
+    const monitor = new GmailInboxMonitor({
+      gateway: {
+        async createDraft() {
+          return { id: "draft_123" };
+        },
+        async searchThreads() {
+          return {
+            threads: [{ id: "thread_missing_plan", messages: [] }],
+          };
+        },
+        async getThread() {
+          return {
+            id: "thread_missing_plan",
+            messages: [
+              {
+                id: "msg_approval_no_plan",
+                threadId: "thread_missing_plan",
+                from: "Buyer <buyer@acme.test>",
+                toRecipients: ["poc@example.test"],
+                subject: "Re: clarification",
+                plaintextBody: "Approved, please proceed.",
+                date: "2026-06-05T12:00:00Z",
+              },
+            ],
+          };
+        },
+      },
+      workflow: {
+        async processEmailReply() {
+          throw new Error("should not process replies for no-plan PoCs");
+        },
+      },
+      pocStatus: {
+        async list() {
+          return {
+            pocs: [
+              {
+                pocId: "poc_missing_plan",
+                status: "needs_clarification",
+                createdAt: "2026-06-05T11:55:00Z",
+                updatedAt: "2026-06-05T11:55:00Z",
+                confirmationThreadId: "thread_missing_plan",
+                hasRequirements: true,
+                hasActivePlan: false,
+                hasSetupResult: false,
+              },
+            ],
+          };
+        },
+        async detail() {
+          return {
+            pocId: "poc_missing_plan",
+            status: "needs_clarification",
+            createdAt: "2026-06-05T11:55:00Z",
+            updatedAt: "2026-06-05T11:55:00Z",
+            hasRequirements: true,
+            hasActivePlan: false,
+            hasSetupResult: false,
+            requirements: {
+              pocId: "poc_missing_plan",
+              product: "posthog",
+              customer: {
+                companyName: "Acme",
+                companySlug: "acme",
+                contacts: [{ email: "buyer@acme.test", isPrimary: true }],
+              },
+              businessGoal: "Missing plan.",
+              successCriteria: [],
+              appContext: { platform: ["web"] },
+              analyticsScope: { events: [] },
+              assumptions: [],
+              openQuestions: [],
+              source: {
+                sourceKind: "api",
+                receivedAt: "2026-06-05T11:55:00Z",
+              },
+            },
+          };
+        },
+      },
+    });
+
+    await expect(monitor.monitor({})).resolves.toMatchObject({
+      searchedThreads: 1,
+      processedMessages: 0,
+      skippedMessages: 1,
+    });
+  });
 });

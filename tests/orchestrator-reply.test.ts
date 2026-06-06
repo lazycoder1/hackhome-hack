@@ -56,6 +56,42 @@ describe("Orchestrator reply handling", () => {
     expect(approval).toBeDefined();
   });
 
+  it("does not approve a historical no-plan PoC from an approval reply", async () => {
+    const completed: unknown[] = [];
+    const { orchestrator, store } = systemWithReplyClassifier({
+      intent: "approved",
+      completed,
+    });
+    await orchestrator.submitRequirementsBlob(requirementsBlob());
+    await store.updatePoc("poc_123", {
+      status: "needs_clarification",
+      updatedAt: "2026-06-04T00:00:00.000Z",
+      activePlanVersion: undefined,
+    });
+
+    const result = await orchestrator.processCustomerReply({
+      pocId: "poc_123",
+      message: {
+        id: "inbound-1",
+        threadId: "thread-1",
+        from: "buyer@acme.test",
+        to: ["poc@example.test"],
+        subject: "Re: clarification",
+        textBody: "Approved, please proceed.",
+        receivedAt: "2026-06-04T00:05:00.000Z",
+      },
+    });
+
+    expect(result).toEqual({
+      intent: "approved",
+      completedApproval: false,
+      requiresSetup: false,
+      changes: [],
+    });
+    expect(completed).toEqual([]);
+    expect((await store.getPoc("poc_123"))?.status).toBe("needs_clarification");
+  });
+
   it("creates a revised plan and resends confirmation when the customer requests changes", async () => {
     const completed: unknown[] = [];
     const sentEmails: unknown[] = [];

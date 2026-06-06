@@ -187,6 +187,25 @@ export class Orchestrator {
       createdAt: now,
     });
 
+    if (classification.intent === "approved" && !poc.activePlanVersion) {
+      await this.audit.writeAuditLog({
+        pocId: input.pocId,
+        actor: "orchestrator",
+        action: "skip_customer_reply_without_active_plan",
+        target: input.message.from,
+        outputSummary: classification.intent,
+        status: "skipped",
+        createdAt: now,
+      });
+
+      return {
+        intent: classification.intent,
+        completedApproval: false,
+        requiresSetup: false,
+        changes,
+      };
+    }
+
     if (classification.intent === "approved" || classification.intent === "rejected") {
       let completedApproval = false;
       if (poc.approvalTokenId) {
