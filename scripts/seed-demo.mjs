@@ -198,9 +198,18 @@ function buildSetup({
         ),
       ),
   );
-  events.slice(0, 2).forEach((e, i) =>
-    created.push(resource("action", `act_${pid}_${i}`, `${e.name} action`, `${projectUrl(pid)}/data-management/actions/${i}`)),
-  );
+  events
+    .slice(0, 2)
+    .forEach((e, i) =>
+      created.push(
+        resource(
+          "action",
+          `act_${pid}_${i}`,
+          `${e.name} action`,
+          `${projectUrl(pid)}/data-management/actions/${i}`,
+        ),
+      ),
+    );
 
   return {
     pocId: `poc`,
@@ -216,7 +225,12 @@ function buildSetup({
     skippedResources:
       status === "succeeded"
         ? []
-        : [{ reason: "Deferred until customer confirms PII masking", resource: { type: "session_recording_playlist" } }],
+        : [
+            {
+              reason: "Deferred until customer confirms PII masking",
+              resource: { type: "session_recording_playlist" },
+            },
+          ],
     credentialRefs: withCreds
       ? [
           {
@@ -266,7 +280,11 @@ addPoc({
   dashboards: [
     dashboard("Activation Overview", [
       { title: "Signups over time", type: "trend", sourceEvents: ["signup_completed"] },
-      { title: "Signup → Activation funnel", type: "funnel", sourceEvents: ["signup_started", "activation_event"] },
+      {
+        title: "Signup → Activation funnel",
+        type: "funnel",
+        sourceEvents: ["signup_started", "activation_event"],
+      },
       { title: "Notes", type: "text" },
     ]),
   ],
@@ -289,9 +307,19 @@ addPoc({
         checkedAt: ago(200),
         summary: "All required checks passed. Synthetic activation event visible in the dashboard.",
         checks: [
-          check("project_readable", "Project readable via MCP", "pass", "project-get returned project 41001"),
+          check(
+            "project_readable",
+            "Project readable via MCP",
+            "pass",
+            "project-get returned project 41001",
+          ),
           check("dashboard_present", "Activation dashboard exists", "pass", "3 tiles created"),
-          check("synthetic_event", "Synthetic activation_event captured", "pass", "Visible after 1 retry"),
+          check(
+            "synthetic_event",
+            "Synthetic activation_event captured",
+            "pass",
+            "Visible after 1 retry",
+          ),
           check("sql_smoke", "SQL smoke query", "pass", "SELECT count() returned 1 row"),
           check("flag_present", "Feature flag created", "pass", "new-onboarding @ 50%"),
         ],
@@ -312,7 +340,8 @@ addPoc({
   company: "Northwind Logistics",
   slug: "northwind",
   status: "confirmation_sent",
-  objective: "Understand why shippers drop off in the quote-to-booking funnel and which carriers win.",
+  objective:
+    "Understand why shippers drop off in the quote-to-booking funnel and which carriers win.",
   successCriteria: [
     "Quote → booking funnel is visible with drop-off rates",
     "Carrier popularity breakdown is available to the ops team",
@@ -321,13 +350,21 @@ addPoc({
   events: northwindEvents,
   dashboards: [
     dashboard("Booking Funnel", [
-      { title: "Quote → Booking funnel", type: "funnel", sourceEvents: ["viewed_quote", "requested_booking", "booking_confirmed"] },
+      {
+        title: "Quote → Booking funnel",
+        type: "funnel",
+        sourceEvents: ["viewed_quote", "requested_booking", "booking_confirmed"],
+      },
       { title: "Carrier popularity", type: "trend", sourceEvents: ["carrier_selected"] },
     ]),
   ],
   assumptions: ["React + Node web app", "EU data region required"],
   openQuestions: ["Should we mask freight pricing values?", "Is staging in scope or prod only?"],
-  security: { piiPolicy: "Mask all text inputs", maskTextInputs: true, credentialExpiry: "14 days" },
+  security: {
+    piiPolicy: "Mask all text inputs",
+    maskTextInputs: true,
+    credentialExpiry: "14 days",
+  },
   region: "EU",
   contact: { name: "Dana Office", email: "dana@northwind.test", role: "Head of Product" },
   createdMinsAgo: 120,
@@ -357,7 +394,11 @@ addPoc({
   events: globexEvents,
   dashboards: [
     dashboard("Checkout", [
-      { title: "Checkout funnel", type: "funnel", sourceEvents: ["checkout_started", "payment_submitted", "order_completed"] },
+      {
+        title: "Checkout funnel",
+        type: "funnel",
+        sourceEvents: ["checkout_started", "payment_submitted", "order_completed"],
+      },
     ]),
   ],
   assumptions: ["Single storefront", "US region"],
@@ -381,7 +422,11 @@ addPoc({
   objective: "Track reporting feature adoption for a renewal conversation.",
   successCriteria: ["Report usage dashboard", "Power-user cohort"],
   events: initechEvents,
-  dashboards: [dashboard("Reporting Adoption", [{ title: "Reports generated", type: "trend", sourceEvents: ["report_generated"] }])],
+  dashboards: [
+    dashboard("Reporting Adoption", [
+      { title: "Reports generated", type: "trend", sourceEvents: ["report_generated"] },
+    ]),
+  ],
   contact: { name: "Bill Lumbergh", email: "bill@initech.test", role: "Director" },
   createdMinsAgo: 90,
   updatedMinsAgo: 2,
@@ -401,7 +446,12 @@ addPoc({
         checks: [
           check("project_readable", "Project readable via MCP", "pass", "project-get ok"),
           check("dashboard_present", "Reporting dashboard exists", "pass", "1 tile created"),
-          check("synthetic_event", "Synthetic report_generated captured", "warn", "Not yet visible, retrying"),
+          check(
+            "synthetic_event",
+            "Synthetic report_generated captured",
+            "warn",
+            "Not yet visible, retrying",
+          ),
           check("sql_smoke", "SQL smoke query", "skipped"),
         ],
         knownGaps: ["Cohort not yet created"],
@@ -442,9 +492,23 @@ addPoc({
   objective: "Telemetry analytics for deployed units — strict security review required.",
   successCriteria: ["Deployment funnel", "Threat-rate alert"],
   events: starkEvents,
-  dashboards: [dashboard("Telemetry", [{ title: "Deployments", type: "trend", sourceEvents: ["suit_deployed"] }])],
-  alerts: [{ name: "Threat spike", condition: "threat_detected > 100 / hr", destination: "ops@stark.test" }],
-  security: { piiPolicy: "No PII may leave the EU", maskTextInputs: true, allowedDomains: ["stark.test"] },
+  dashboards: [
+    dashboard("Telemetry", [
+      { title: "Deployments", type: "trend", sourceEvents: ["suit_deployed"] },
+    ]),
+  ],
+  alerts: [
+    {
+      name: "Threat spike",
+      condition: "threat_detected > 100 / hr",
+      destination: "ops@stark.test",
+    },
+  ],
+  security: {
+    piiPolicy: "No PII may leave the EU",
+    maskTextInputs: true,
+    allowedDomains: ["stark.test"],
+  },
   contact: { name: "Pepper Potts", email: "pepper@stark.test", role: "CEO" },
   createdMinsAgo: 300,
   updatedMinsAgo: 45,
@@ -461,11 +525,18 @@ addPoc({
         pocId: "poc_stark",
         status: "fail",
         checkedAt: ago(46),
-        summary: "Synthetic event never became visible; SQL smoke query failed. Escalated for review.",
+        summary:
+          "Synthetic event never became visible; SQL smoke query failed. Escalated for review.",
         checks: [
           check("project_readable", "Project readable via MCP", "pass", "project-get ok"),
           check("dashboard_present", "Telemetry dashboard exists", "pass", "1 tile created"),
-          check("synthetic_event", "Synthetic suit_deployed captured", "fail", undefined, "Event not visible after 5 retries"),
+          check(
+            "synthetic_event",
+            "Synthetic suit_deployed captured",
+            "fail",
+            undefined,
+            "Event not visible after 5 retries",
+          ),
           check("sql_smoke", "SQL smoke query", "fail", undefined, "execute-sql returned 0 rows"),
         ],
         knownGaps: ["Ingestion may be blocked by allowed-domains policy"],
@@ -493,7 +564,13 @@ addPoc({
       { title: "Feature usage", type: "trend", sourceEvents: ["feature_used"] },
     ]),
   ],
-  surveys: [{ name: "Why did you upgrade?", questions: [{ prompt: "What convinced you?", type: "open_text" }], launchDuringPoC: true }],
+  surveys: [
+    {
+      name: "Why did you upgrade?",
+      questions: [{ prompt: "What convinced you?", type: "open_text" }],
+      launchDuringPoC: true,
+    },
+  ],
   contact: { name: "Ada Wong", email: "ada@umbrella.test", role: "Growth Lead" },
   createdMinsAgo: 1440,
   updatedMinsAgo: 240,
@@ -514,7 +591,12 @@ addPoc({
         checks: [
           check("project_readable", "Project readable via MCP", "pass", "ok"),
           check("dashboard_present", "Conversion dashboard exists", "pass", "2 tiles created"),
-          check("synthetic_event", "Synthetic upgraded event captured", "pass", "Visible immediately"),
+          check(
+            "synthetic_event",
+            "Synthetic upgraded event captured",
+            "pass",
+            "Visible immediately",
+          ),
           check("survey_present", "Survey created", "warn", "No responses yet"),
           check("sql_smoke", "SQL smoke query", "pass", "1 row"),
         ],
@@ -536,7 +618,11 @@ addPoc({
   objective: "Response-time analytics PoC — completed and signed off.",
   successCriteria: ["Incident response funnel", "Response-time trend"],
   events: wayneEvents,
-  dashboards: [dashboard("Response Ops", [{ title: "Response time", type: "trend", sourceEvents: ["response_dispatched"] }])],
+  dashboards: [
+    dashboard("Response Ops", [
+      { title: "Response time", type: "trend", sourceEvents: ["response_dispatched"] },
+    ]),
+  ],
   contact: { name: "Lucius Fox", email: "lucius@wayne.test", role: "CTO" },
   createdMinsAgo: 14400,
   updatedMinsAgo: 4320,

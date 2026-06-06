@@ -391,9 +391,7 @@ describe("LocalPocWorkflow", () => {
       threadId: "thread-1",
       subject: "Quick clarification on your Acme PostHog PoC",
     });
-    expect(email.sentEmails[0]?.markdownBody).toContain(
-      "What should count as an engaged session?",
-    );
+    expect(email.sentEmails[0]?.markdownBody).toContain("What should count as an engaged session?");
   });
 
   it("retries the handoff stage from a persisted approved plan and setup result", async () => {

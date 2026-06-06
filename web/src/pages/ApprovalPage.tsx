@@ -21,7 +21,11 @@ export function ApprovalPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (pocId) api.getPoc(pocId).then(setPoc).catch(() => undefined);
+    if (pocId)
+      api
+        .getPoc(pocId)
+        .then(setPoc)
+        .catch(() => undefined);
   }, [pocId]);
 
   const missing = !tokenId || !publicAccessToken;
@@ -58,7 +62,9 @@ export function ApprovalPage() {
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center justify-between">
           <Logo />
-          <span className="chip" style={{ background: "var(--color-gold)" }}>Plan confirmation</span>
+          <span className="chip" style={{ background: "var(--color-gold)" }}>
+            Plan confirmation
+          </span>
         </div>
 
         <div className="pop overflow-hidden p-0">
@@ -68,15 +74,16 @@ export function ApprovalPage() {
             </p>
             <h1 className="mt-1 text-2xl font-extrabold">Confirm your PostHog PoC plan</h1>
             <p className="mt-2 text-sm font-medium text-[var(--color-ink-soft)]">
-              Here’s what we’ll configure. Approve to start setup, or tell us what to change — nothing is
-              built until you say go.
+              Here’s what we’ll configure. Approve to start setup, or tell us what to change —
+              nothing is built until you say go.
             </p>
           </div>
 
           <div className="space-y-5 px-6 py-5">
             {missing && (
               <div className="rounded-[10px] border-2 border-[var(--color-fail)] bg-[#ffece6] px-4 py-3 text-sm font-semibold text-[#8c2a14]">
-                This approval link is missing its token parameters. Please reply to the confirmation email instead.
+                This approval link is missing its token parameters. Please reply to the confirmation
+                email instead.
               </div>
             )}
 
@@ -91,11 +98,14 @@ export function ApprovalPage() {
 
             {successCriteria.length > 0 && (
               <div>
-                <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-muted)]">Success criteria</h2>
+                <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-muted)]">
+                  Success criteria
+                </h2>
                 <ul className="mt-2 space-y-1.5">
                   {successCriteria.map((c, i) => (
                     <li key={i} className="flex gap-2 text-sm font-medium">
-                      <span className="text-[var(--color-grass)]">✓</span>{c}
+                      <span className="text-[var(--color-grass)]">✓</span>
+                      {c}
                     </li>
                   ))}
                 </ul>
@@ -109,7 +119,9 @@ export function ApprovalPage() {
                 </h2>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {events.map((e) => (
-                    <span key={e.name} className="mono chip" style={{ background: "#fff" }}>{e.name}</span>
+                    <span key={e.name} className="mono chip" style={{ background: "#fff" }}>
+                      {e.name}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -120,7 +132,10 @@ export function ApprovalPage() {
                 <h2 className="text-sm font-extrabold">A couple of open questions</h2>
                 <ul className="mt-1.5 space-y-1 text-sm font-medium">
                   {openQuestions.map((q, i) => (
-                    <li key={i} className="flex gap-2"><span>?</span>{q}</li>
+                    <li key={i} className="flex gap-2">
+                      <span>?</span>
+                      {q}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -131,7 +146,11 @@ export function ApprovalPage() {
                 className="rounded-[10px] border-2 px-4 py-4 text-sm font-bold"
                 style={
                   done === "approved"
-                    ? { background: "#e6f6ec", borderColor: "var(--color-grass)", color: "var(--color-grass-ink)" }
+                    ? {
+                        background: "#e6f6ec",
+                        borderColor: "var(--color-grass)",
+                        color: "var(--color-grass-ink)",
+                      }
                     : { background: "#fff8e3", borderColor: "var(--color-gold)", color: "#7a5200" }
                 }
               >
@@ -155,7 +174,10 @@ export function ApprovalPage() {
                   />
                 </label>
                 <label className="mt-3 block text-sm font-bold">
-                  Requested changes <span className="font-normal text-[var(--color-muted)]">(optional, one per line)</span>
+                  Requested changes{" "}
+                  <span className="font-normal text-[var(--color-muted)]">
+                    (optional, one per line)
+                  </span>
                   <textarea
                     value={changes}
                     onChange={(e) => setChanges(e.target.value)}
@@ -171,16 +193,30 @@ export function ApprovalPage() {
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button className="btn btn-grass" disabled={missing || busy || !email} onClick={() => submit("approved")}>
+                  <button
+                    className="btn btn-grass"
+                    disabled={missing || busy || !email}
+                    onClick={() => submit("approved")}
+                  >
                     ✓ Approve & start setup
                   </button>
-                  <button className="btn" disabled={missing || busy} onClick={() => submit("needs_changes")}>
+                  <button
+                    className="btn"
+                    disabled={missing || busy}
+                    onClick={() => submit("needs_changes")}
+                  >
                     Request changes
                   </button>
-                  <button className="btn btn-flame" disabled={missing || busy} onClick={() => submit("rejected")}>
+                  <button
+                    className="btn btn-flame"
+                    disabled={missing || busy}
+                    onClick={() => submit("rejected")}
+                  >
                     Decline
                   </button>
-                  <span className="ml-auto inline-flex items-center"><Story id="US-C2" side="top" /></span>
+                  <span className="ml-auto inline-flex items-center">
+                    <Story id="US-C2" side="top" />
+                  </span>
                 </div>
               </div>
             )}
@@ -188,7 +224,8 @@ export function ApprovalPage() {
         </div>
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-[var(--color-muted)]">
-          Powered by PoC Pilot · Setup only begins after your approval. <Story id="US-C3" side="top" />
+          Powered by PoC Pilot · Setup only begins after your approval.{" "}
+          <Story id="US-C3" side="top" />
         </p>
       </div>
     </div>

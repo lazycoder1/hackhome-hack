@@ -2,7 +2,12 @@ import type { HandoffGenerator } from "../handoff/handoff-generator.js";
 import type { MonitorPocInput, PocMonitoringAgent } from "../monitoring/poc-monitoring-agent.js";
 import type { PocStore } from "../state/types.js";
 import type { AuditTool, EmailTool } from "../tools/types.js";
-import type { InboundEmailMessage, PocLifecycleStatus, PocPlan, SetupResult } from "../contracts.js";
+import type {
+  InboundEmailMessage,
+  PocLifecycleStatus,
+  PocPlan,
+  SetupResult,
+} from "../contracts.js";
 import type { PocSetupAgent } from "./poc-setup-agent.js";
 import type { RetryPocStageInput, RetryPocStageResult } from "./workflow-api.js";
 

@@ -194,7 +194,10 @@ export function StoryIndex() {
       </div>
 
       <div className="mb-1 flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full border border-[var(--color-line)]" style={{ background: "var(--color-brand)" }} />
+        <span
+          className="h-2 w-2 rounded-full border border-[var(--color-line)]"
+          style={{ background: "var(--color-brand)" }}
+        />
         <span className="text-[0.58rem] font-extrabold uppercase tracking-wide text-[var(--color-muted)]">
           Operator
         </span>
@@ -206,7 +209,10 @@ export function StoryIndex() {
       </div>
 
       <div className="mb-1 flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full border border-[var(--color-line)]" style={{ background: "var(--color-berry)" }} />
+        <span
+          className="h-2 w-2 rounded-full border border-[var(--color-line)]"
+          style={{ background: "var(--color-berry)" }}
+        />
         <span className="text-[0.58rem] font-extrabold uppercase tracking-wide text-[var(--color-muted)]">
           Customer
         </span>
@@ -239,7 +245,9 @@ export function StoryModeToggle() {
         />
       </span>
       Story mode
-      <span className="ml-auto text-[0.65rem] text-[var(--color-muted)]">{enabled ? "on" : "off"}</span>
+      <span className="ml-auto text-[0.65rem] text-[var(--color-muted)]">
+        {enabled ? "on" : "off"}
+      </span>
     </button>
   );
 }

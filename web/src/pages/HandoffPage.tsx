@@ -25,7 +25,9 @@ export function HandoffPage() {
       <div className="mx-auto max-w-2xl px-4 py-12 text-center">
         <Logo />
         <p className="mt-6 font-bold">This PoC isn’t ready for handoff yet.</p>
-        <Link to="/" className="btn mt-4">← Back to console</Link>
+        <Link to="/" className="btn mt-4">
+          ← Back to console
+        </Link>
       </div>
     );
   }
@@ -54,11 +56,16 @@ export function HandoffPage() {
             </p>
             <h1 className="mt-1 text-2xl font-extrabold">Your PostHog PoC is live</h1>
             <p className="mt-2 text-sm font-medium text-[var(--color-ink-soft)]">
-              Everything below is configured and validated. Use the links to start sending events and
-              watching your funnels.
+              Everything below is configured and validated. Use the links to start sending events
+              and watching your funnels.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <a className="btn btn-primary" href={setup.posthog.projectUrl} target="_blank" rel="noreferrer">
+              <a
+                className="btn btn-primary"
+                href={setup.posthog.projectUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open PostHog project ↗
               </a>
               {dashboards[0]?.url && (
@@ -75,7 +82,10 @@ export function HandoffPage() {
                 className="flex items-center gap-3 rounded-[10px] border-2 px-4 py-3"
                 style={{ borderColor: vtone, background: "#fff" }}
               >
-                <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--color-line)] text-lg font-black text-white" style={{ background: vtone }}>
+                <span
+                  className="grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--color-line)] text-lg font-black text-white"
+                  style={{ background: vtone }}
+                >
                   {validation.status === "pass" ? "✓" : validation.status === "warn" ? "!" : "✕"}
                 </span>
                 <div>
@@ -88,13 +98,21 @@ export function HandoffPage() {
             <Block title="What we configured">
               <div className="flex flex-wrap gap-1.5">
                 {summarize(setup.createdResources).map((s) => (
-                  <span key={s} className="chip" style={{ background: "#fff" }}>{s}</span>
+                  <span key={s} className="chip" style={{ background: "#fff" }}>
+                    {s}
+                  </span>
                 ))}
               </div>
             </Block>
 
             {successCriteria.length > 0 && (
-              <Block title={<span className="inline-flex items-center gap-1.5">Your testing plan <Story id="US-C6" side="bottom" /></span>}>
+              <Block
+                title={
+                  <span className="inline-flex items-center gap-1.5">
+                    Your testing plan <Story id="US-C6" side="bottom" />
+                  </span>
+                }
+              >
                 <p className="mb-2 text-sm text-[var(--color-muted)]">
                   Each step maps to a success criterion you asked for:
                 </p>
@@ -120,9 +138,16 @@ export function HandoffPage() {
             )}
 
             {setup.credentialRefs.some((c) => c.oneTimeLink) && (
-              <Block title={<span className="inline-flex items-center gap-1.5">Secure credentials <Story id="US-C5" side="top" /></span>}>
+              <Block
+                title={
+                  <span className="inline-flex items-center gap-1.5">
+                    Secure credentials <Story id="US-C5" side="top" />
+                  </span>
+                }
+              >
                 <p className="mb-2 text-sm text-[var(--color-muted)]">
-                  One-time links — open once, then store in your password manager. We never email raw secrets.
+                  One-time links — open once, then store in your password manager. We never email
+                  raw secrets.
                 </p>
                 <div className="space-y-2">
                   {setup.credentialRefs
@@ -149,7 +174,10 @@ export function HandoffPage() {
               <Block title="Good to know">
                 <ul className="space-y-1 text-sm">
                   {setup.knownGaps.map((g, i) => (
-                    <li key={i} className="flex gap-2"><span className="text-[var(--color-warn)]">▲</span>{g}</li>
+                    <li key={i} className="flex gap-2">
+                      <span className="text-[var(--color-warn)]">▲</span>
+                      {g}
+                    </li>
                   ))}
                 </ul>
               </Block>
@@ -158,11 +186,15 @@ export function HandoffPage() {
             {plan && (
               <div className="grid grid-cols-2 gap-3 border-t-2 border-[var(--color-hairline)] pt-5 text-sm">
                 <div>
-                  <div className="text-xs font-bold uppercase text-[var(--color-muted)]">Review date</div>
+                  <div className="text-xs font-bold uppercase text-[var(--color-muted)]">
+                    Review date
+                  </div>
                   <div className="font-bold">{plan.handoffPlan.reviewDate ?? "TBD"}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-bold uppercase text-[var(--color-muted)]">Teardown date</div>
+                  <div className="text-xs font-bold uppercase text-[var(--color-muted)]">
+                    Teardown date
+                  </div>
                   <div className="font-bold">{plan.handoffPlan.teardownDate ?? "TBD"}</div>
                 </div>
               </div>
@@ -174,7 +206,10 @@ export function HandoffPage() {
           Questions? Reply to your handoff email and the team will jump in. · Powered by PoC Pilot
         </p>
         <div className="mt-3 text-center">
-          <Link to={`/poc/${encodeURIComponent(poc.pocId)}`} className="text-xs font-semibold text-[var(--color-brand)]">
+          <Link
+            to={`/poc/${encodeURIComponent(poc.pocId)}`}
+            className="text-xs font-semibold text-[var(--color-brand)]"
+          >
             ← Operator view
           </Link>
         </div>
@@ -186,7 +221,9 @@ export function HandoffPage() {
 function Block({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wide text-[var(--color-muted)]">{title}</h2>
+      <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wide text-[var(--color-muted)]">
+        {title}
+      </h2>
       {children}
     </div>
   );
@@ -197,5 +234,7 @@ function summarize(resources: { type: string }[]): string[] {
     acc[r.type] = (acc[r.type] ?? 0) + 1;
     return acc;
   }, {});
-  return Object.entries(counts).map(([type, n]) => `${n} ${type.replaceAll("_", " ")}${n > 1 ? "s" : ""}`);
+  return Object.entries(counts).map(
+    ([type, n]) => `${n} ${type.replaceAll("_", " ")}${n > 1 ? "s" : ""}`,
+  );
 }

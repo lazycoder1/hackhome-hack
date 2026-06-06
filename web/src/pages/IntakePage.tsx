@@ -58,7 +58,11 @@ export function IntakePage() {
       <div className="mx-auto max-w-3xl px-6 py-6 md:px-8">
         <div className="grid gap-4">
           <Section
-            title={<span className="inline-flex items-center gap-1.5">Requirements blob <Story id="US-O11" /></span>}
+            title={
+              <span className="inline-flex items-center gap-1.5">
+                Requirements blob <Story id="US-O11" />
+              </span>
+            }
             right={
               <button className="btn" onClick={() => setText(SAMPLE)} type="button">
                 Use sample call
@@ -110,12 +114,16 @@ export function IntakePage() {
           <div className="flex items-center justify-between">
             <p className="flex max-w-md items-start gap-1.5 text-xs text-[var(--color-muted)]">
               <span>
-                Customer text is treated as untrusted: it shapes the plan but never executes tool calls.
-                Setup only starts after explicit approval.
+                Customer text is treated as untrusted: it shapes the plan but never executes tool
+                calls. Setup only starts after explicit approval.
               </span>
               <Story id="US-O12" />
             </p>
-            <button className="btn btn-primary" disabled={!text.trim() || submitting} onClick={submit}>
+            <button
+              className="btn btn-primary"
+              disabled={!text.trim() || submitting}
+              onClick={submit}
+            >
               {submitting ? "Extracting plan…" : "Extract plan →"}
             </button>
           </div>
