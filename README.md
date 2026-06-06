@@ -32,6 +32,13 @@ Most B2B technical pilots fail before they prove value because setup work is sca
 ## Repository Contents
 
 - [`docs/PRD.md`](./docs/PRD.md) - detailed product requirements document.
+- [`docs/prds/`](./docs/prds/) - focused PRD pack split by workstream:
+  - [Product Vision and MVP](./docs/prds/01-product-vision-and-mvp.md)
+  - [Agentic Workflow and Lifecycle](./docs/prds/02-agentic-workflow-and-lifecycle.md)
+  - [PostHog Dashboard Builder](./docs/prds/03-posthog-dashboard-builder.md)
+  - [Email-Native Buyer Loop](./docs/prds/04-email-native-buyer-loop.md)
+  - [Operator Console](./docs/prds/05-operator-console.md)
+  - [Demo, Validation, and Judging Plan](./docs/prds/06-demo-validation-and-judging-plan.md)
 
 This repo is intentionally starting as a clean hackathon base. Implementation should proceed from the PRD rather than importing private credentials, local state, generated dashboard artifacts, or unrelated project history.
 
@@ -73,4 +80,3 @@ The hackathon MVP should prove one complete path:
 - Ask buyers only business questions, never implementation questions.
 - Prefer one complete vertical over many shallow integrations.
 - Make every created artifact auditable.
-
