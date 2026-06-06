@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
+  ActivityEvent,
   PocMonitoringReport,
   PocPlan,
   PocRecord,
@@ -15,6 +16,7 @@ type FileStoreData = {
   plans: Record<string, PocPlan>;
   setupResults: Record<string, SetupResult>;
   monitoringReports: Record<string, PocMonitoringReport[]>;
+  activityEvents: Record<string, ActivityEvent[]>;
 };
 
 export class FilePocStore implements PocStore {
@@ -123,6 +125,26 @@ export class FilePocStore implements PocStore {
     return (await this.listMonitoringReports(pocId, { limit: 1 }))[0];
   }
 
+  async saveActivityEvent(event: ActivityEvent): Promise<void> {
+    const data = this.read();
+    if (!data.pocs[event.pocId]) {
+      throw new Error(`Unknown PoC: ${event.pocId}`);
+    }
+    const events = data.activityEvents[event.pocId] ?? [];
+    data.activityEvents[event.pocId] = [
+      ...events.filter((existing) => existing.id !== event.id),
+      event,
+    ].sort(sortEventsNewestFirst);
+    this.write(data);
+  }
+
+  async listActivityEvents(
+    pocId: string,
+    input: { limit?: number } = {},
+  ): Promise<ActivityEvent[]> {
+    return (this.read().activityEvents[pocId] ?? []).slice(0, input.limit ?? 50);
+  }
+
   private ensureFile(): void {
     mkdirSync(dirname(this.path), { recursive: true });
     if (!existsSync(this.path)) {
@@ -132,6 +154,7 @@ export class FilePocStore implements PocStore {
         plans: {},
         setupResults: {},
         monitoringReports: {},
+        activityEvents: {},
       });
     }
   }
@@ -144,6 +167,7 @@ export class FilePocStore implements PocStore {
       plans: data.plans ?? {},
       setupResults: data.setupResults ?? {},
       monitoringReports: data.monitoringReports ?? {},
+      activityEvents: data.activityEvents ?? {},
     };
   }
 
@@ -158,4 +182,8 @@ export class FilePocStore implements PocStore {
 
 function sortReportsNewestFirst(left: PocMonitoringReport, right: PocMonitoringReport): number {
   return right.checkedAt.localeCompare(left.checkedAt);
+}
+
+function sortEventsNewestFirst(left: ActivityEvent, right: ActivityEvent): number {
+  return right.ts.localeCompare(left.ts);
 }

@@ -204,7 +204,6 @@ export type PostHogToolGateway = {
     projectId: string;
     dashboardId: string;
     name: string;
-    description?: string;
     type: string;
     sourceEvents?: string[];
     query?: Record<string, unknown>;

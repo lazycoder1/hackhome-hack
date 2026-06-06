@@ -19,11 +19,7 @@
     "demo": "npm run build && node dist/src/cli/demo.js",
     "posthog:mcp:smoke": "node dist/src/cli/posthog-mcp-smoke.js",
     "posthog:mcp:mutation-smoke": "node dist/src/cli/posthog-mcp-mutation-smoke.js",
-    "posthog:agentic-dashboard-smoke": "npm run build && node dist/src/cli/posthog-agentic-dashboard-live-smoke.js",
-    "posthog:agentic-dashboard-create": "npm run build && node dist/src/cli/posthog-agentic-dashboard-live-smoke.js --create",
     "gmail:mcp:deepseek-draft-smoke": "node dist/src/cli/gmail-mcp-deepseek-draft-smoke.js",
-    "gmail:api-send-smoke": "node dist/src/cli/gmail-api-send-smoke.js",
-    "gmail:api-inbox-smoke": "node dist/src/cli/gmail-api-inbox-monitor-smoke.js",
     "trigger:dev": "npx trigger.dev@4.4.6 dev",
     "trigger:deploy": "npx trigger.dev@4.4.6 deploy"
   },

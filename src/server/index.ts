@@ -3,6 +3,8 @@ import { config as loadDotenv } from "dotenv";
 import { createHttpApiServer } from "./http-server.js";
 import { TriggerWorkflowClient } from "../workflow/trigger-workflow-client.js";
 import { LocalWorkflowApi } from "../workflow/local-workflow-api.js";
+import { IntervalTicker } from "../workflow/interval-ticker.js";
+import { NudgeApprovalService } from "../workflow/nudge-approval-service.js";
 import type { WorkflowApi } from "../workflow/workflow-api.js";
 import { createAgentSystem } from "../app/create-agent-system.js";
 import { createPocStore } from "../state/create-poc-store.js";
@@ -32,6 +34,7 @@ export function startHttpServer(
   let store: PocStore;
   let googleTestEmail: EmailTool | undefined;
   let googleApiDraftEmail: GmailApiEmailTool | undefined;
+  let nudges: NudgeApprovalService | undefined;
   if ((process.env.WORKFLOW_MODE ?? "trigger").toLowerCase() === "local") {
     const system = createAgentSystem({
       approvalMode: "local",
@@ -44,6 +47,25 @@ export function startHttpServer(
       accessTokenProvider: () => googleOAuth.freshAccessToken(),
       fromProvider: () => googleOAuth.status().email,
     });
+    nudges = new NudgeApprovalService({
+      store: system.store,
+      email: system.tools.email,
+      approval: system.tools.approval,
+    });
+
+    // Always-on loop for local mode: the in-process mirror of the Trigger.dev schedule.
+    // Set POV_TICK_INTERVAL_MS to enable (e.g. 60000 for a 60s heartbeat).
+    const tickIntervalMs = Number(process.env.POV_TICK_INTERVAL_MS);
+    if (Number.isFinite(tickIntervalMs) && tickIntervalMs > 0) {
+      new IntervalTicker({
+        store: system.store,
+        runner: system.povLoopRunner,
+        intervalMs: tickIntervalMs,
+        log: (message) => console.log(`[pov-loop] ${message}`),
+        onError: (error, pocId) =>
+          console.error(`[pov-loop] tick error${pocId ? ` for ${pocId}` : ""}: ${error.message}`),
+      }).start();
+    }
   } else {
     workflow = new TriggerWorkflowClient();
     store = createPocStore();
@@ -56,6 +78,7 @@ export function startHttpServer(
     googleOAuth,
     googleTestEmail,
     googleApiDraftEmail,
+    nudges,
   });
 
   server.listen(port, host, () => {

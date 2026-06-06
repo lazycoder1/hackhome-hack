@@ -277,6 +277,38 @@ export type SetupResult = {
   auditEventIds: string[];
 };
 
+export type ActivityEvent = {
+  id: string;
+  pocId: string;
+  ts: string;
+  kind:
+    | "monitor_tick"
+    | "classification"
+    | "action_proposed"
+    | "action_gated"
+    | "action_sent"
+    | "escalation"
+    | "llm_activated"
+    | "skipped"
+    | "email_sent"
+    | "email_received"
+    | "nudge_decision"
+    | "audit";
+  actor:
+    | "pov_loop"
+    | "monitoring_agent"
+    | "orchestrator"
+    | "setup_agent"
+    | "validation_runner"
+    | "human"
+    | "system";
+  summary: string;
+  status: "proposed" | "gated" | "sent" | "succeeded" | "failed" | "skipped";
+  cadenceKey?: string;
+  refs?: { approvalTokenId?: string; monitoringRunId?: string; emailId?: string };
+  payload?: Record<string, unknown>;
+};
+
 export type PocStatusSummary = {
   pocId: string;
   status: PocLifecycleStatus;
@@ -296,8 +328,20 @@ export type PocStatusSummary = {
   validationStatus?: ValidationReport["status"];
 };
 
+export type MonitoringReport = {
+  pocId: string;
+  status: "on_track" | "at_risk" | "blocked" | "criteria_met" | "inactive" | "unknown";
+  riskLevel: "none" | "low" | "medium" | "high";
+  checkedAt: string;
+  successCriteriaProgress?: {
+    criterion: string;
+    status: "met" | "partially_met" | "not_met" | "blocked" | "unknown";
+  }[];
+};
+
 export type PocStatusDetail = PocStatusSummary & {
   requirements?: PocRequirements;
   activePlan?: PocPlan;
   setupResult?: SetupResult;
+  latestMonitoringReport?: MonitoringReport;
 };

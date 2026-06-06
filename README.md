@@ -139,23 +139,6 @@ npm run gmail:mcp:deepseek-draft-smoke -- gautamgsabhahit@gmail.com
 
 The smoke script uses DeepSeek V4 Pro to generate the draft payload, calls Gmail MCP `create_draft`, and verifies the draft through Gmail's REST search API.
 
-For guarded Gmail API direct-send testing, connect Gmail through Settings or set `GMAIL_API_ACCESS_TOKEN` plus `EMAIL_FROM`, then run:
-
-```bash
-GMAIL_API_SEND_SMOKE=1 npm run gmail:api-send-smoke -- gautamgsabhahit@gmail.com
-```
-
-This sends a real email through Gmail REST `users.messages.send`, so only run it against a test recipient.
-
-For read-only Gmail API inbox monitoring validation, use a narrow query and dry-run the inbox monitor:
-
-```bash
-GMAIL_API_INBOX_SMOKE_REQUIRE_PROCESSED=1 npm run gmail:api-inbox-smoke -- "subject:\"PostHog PoC Gmail API send smoke\" newer_than:1d"
-```
-
-The inbox smoke uses Gmail REST reads, feeds messages through the same `GmailInboxMonitor`
-normalization path, and uses a no-op workflow so it does not mutate PoC state.
-
 The configured default model IDs are:
 
 - `deepseek-v4-pro`
@@ -264,7 +247,7 @@ flowchart LR
 ## Next Build Steps
 
 1. Run `npm run posthog:mcp:smoke` with real PostHog MCP credentials, then validate mutating setup tool argument shapes against a disposable PostHog project.
-2. Fix the Google Cloud `serviceusage.services.use` permission for the official Gmail MCP bridge if the demo must use Gmail MCP instead of the working Gmail API fallback.
+2. Exercise the Gmail MCP bridge and Gmail API direct-send mode with a real OAuth token and a test inbox label.
 3. Extend monitoring into funnel-specific scoring and review-date routing (survey, session-recording, and feature-flag signals are now collected).
 4. Add a small operator UI or CLI on top of the status APIs and monitoring reports.
 5. Add deployment packaging for the API and Trigger.dev workers.

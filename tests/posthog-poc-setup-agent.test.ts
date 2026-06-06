@@ -449,14 +449,6 @@ describe("PostHogPocSetupAgent", () => {
       },
       async executeSql(input) {
         calls.push(`executeSql:${input.query}`);
-        if (
-          !input.query.includes("widget_session_started") &&
-          !input.query.includes("bad_metric")
-        ) {
-          expect(input.query).not.toContain("bizom");
-          expect(input.query).not.toContain("enmovil");
-          expect(input.query).not.toContain("mapKeys");
-        }
         if (input.query.includes("bad_metric")) {
           throw new Error("Unknown identifier bad_metric");
         }
@@ -466,62 +458,16 @@ describe("PostHogPocSetupAgent", () => {
     const llm: LlmJsonClient = {
       async completeJson(input) {
         calls.push(`llm:${input.model}`);
-        const payload = JSON.parse(input.user) as {
-          harness: {
-            mode: string;
-            attempt: number;
-            repairFeedback: string[];
-            forbiddenActions: string[];
-          };
-        };
-        const harness = payload.harness;
-        expect(input.system).toContain("up to 50 internal reconnaissance");
-        expect(input.system).toContain("First make sense of the available data");
-        expect(input.system).toContain("at least one real graph");
-        expect(input.system).toContain("constrained dashboard-spec harness");
-        expect(input.user).toContain('"maxAgentSteps":50');
-        expect(harness.mode).toBe("constrained_dashboard_spec_workspace");
-        expect(harness.forbiddenActions).toContain("edit repository files");
-        expect(harness.forbiddenActions).toContain("call PostHog mutation tools");
-        expect(input.user).toContain("dataAssessment");
         expect(input.user).toContain("widget_session_started");
-        if (harness.attempt === 1) {
-          return {
-            dashboardName: "Widget PM Adoption",
-            dashboardDescription: "PM adoption dashboard generated from live evidence.",
-            clarificationRequired: false,
-            clarificationQuestions: [],
-            dataAssessment: ["Live widget session and email capture events are available."],
-            notes: ["Uses live event evidence."],
-            tiles: [
-              {
-                title: "Sessions",
-                description: "Weak title and missing display should force a repair.",
-                validationSql:
-                  "SELECT properties['$current_url'] AS url, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY url",
-                insightQuery: {
-                  kind: "DataVisualizationNode",
-                  source: {
-                    kind: "HogQLQuery",
-                    query:
-                      "SELECT properties['$current_url'] AS url, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY url",
-                  },
-                },
-              },
-            ],
-          };
-        }
-        expect(harness.repairFeedback.join(" ")).toContain("display");
         return {
           dashboardName: "Widget PM Adoption",
           dashboardDescription: "PM adoption dashboard generated from live evidence.",
           clarificationRequired: false,
           clarificationQuestions: [],
-          dataAssessment: ["Live widget session and email capture events are available."],
           notes: ["Uses live event evidence."],
           tiles: [
             {
-              title: "Sessions by landing page (x = landing page, y = sessions)",
+              title: "Sessions by landing page",
               description: "Shows where visitors start widget sessions.",
               validationSql:
                 "SELECT properties['$current_url'] AS url, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY url",
@@ -532,7 +478,14 @@ describe("PostHogPocSetupAgent", () => {
                   query:
                     "SELECT properties['$current_url'] AS url, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY url",
                 },
-                display: "ActionsBar",
+              },
+            },
+            {
+              title: "Bad generated metric",
+              validationSql: "SELECT bad_metric FROM events",
+              insightQuery: {
+                kind: "DataVisualizationNode",
+                source: { kind: "HogQLQuery", query: "SELECT bad_metric FROM events" },
               },
             },
           ],
@@ -567,146 +520,18 @@ describe("PostHogPocSetupAgent", () => {
 
     expect(result.status).toBe("succeeded");
     expect(calls).toContain("llm:deepseek-v4-flash");
-    expect(calls.filter((call) => call === "llm:deepseek-v4-flash")).toHaveLength(2);
     expect(calls).toContain("createDashboard:Widget PM Adoption");
-    expect(calls).toContain(
-      "createInsight:Sessions by landing page (x = landing page, y = sessions)",
-    );
-    expect(calls).not.toContain("createInsight:Bad generated metric");
+    expect(calls).toContain("createInsight:poc_123: Sessions by landing page");
+    expect(calls).not.toContain("createInsight:poc_123: Bad generated metric");
     expect(insightQueries).toEqual([
       expect.objectContaining({
         kind: "DataVisualizationNode",
-        display: "ActionsBar",
       }),
     ]);
-    expect(result.skippedResources).not.toContainEqual(
-      expect.objectContaining({ resource: { type: "insight", name: "Bad generated metric" } }),
-    );
-  });
-
-  it("does not create a partial agentic dashboard when a tile fails final SQL validation", async () => {
-    const calls: string[] = [];
-    const sqlCallCounts = new Map<string, number>();
-    const posthog: PostHogToolGateway = {
-      async getProject(projectId) {
-        calls.push(`getProject:${projectId}`);
-        return {
-          id: projectId,
-          name: "Widget PoC",
-          url: "https://us.posthog.com/project/123",
-          hostUrl: "https://us.i.posthog.com",
-        };
-      },
-      async updateProjectSettings() {
-        calls.push("updateProjectSettings");
-      },
-      async createAction(input) {
-        calls.push(`createAction:${input.name}`);
-        return { type: "action", id: "action-1", name: input.name };
-      },
-      async createDashboard(input) {
-        calls.push(`createDashboard:${input.name}`);
-        return { type: "dashboard", id: "dashboard-1", name: input.name };
-      },
-      async createInsight(input) {
-        calls.push(`createInsight:${input.name}`);
-        return { type: "insight", id: "insight-1", name: input.name };
-      },
-      async readDataSchema() {
-        calls.push("readDataSchema");
-        return { events: ["widget_session_started", "widget_email_captured"] };
-      },
-      async executeSql(input) {
-        const count = (sqlCallCounts.get(input.query) ?? 0) + 1;
-        sqlCallCounts.set(input.query, count);
-        calls.push(`executeSql:${input.query}:${count}`);
-        if (input.query.includes("flaky_metric") && count > 1) {
-          throw new Error("Unknown identifier flaky_metric");
-        }
-        return { rows: [] };
-      },
-    };
-    const llm: LlmJsonClient = {
-      async completeJson() {
-        return {
-          dashboardName: "Widget PM Adoption",
-          dashboardDescription: "PM adoption dashboard generated from live evidence.",
-          clarificationRequired: false,
-          clarificationQuestions: [],
-          dataAssessment: ["Live widget session and email capture events are available."],
-          notes: ["Uses live event evidence."],
-          tiles: [
-            {
-              title: "Sessions by landing page (x = landing page, y = sessions)",
-              description: "Shows where visitors start widget sessions.",
-              validationSql:
-                "SELECT properties['$current_url'] AS url, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY url",
-              insightQuery: {
-                kind: "DataVisualizationNode",
-                source: {
-                  kind: "HogQLQuery",
-                  query:
-                    "SELECT properties['$current_url'] AS url, count() AS sessions FROM events WHERE event = 'widget_session_started' GROUP BY url",
-                },
-                display: "ActionsBar",
-              },
-            },
-            {
-              title: "Flaky conversion metric by day (x = day, y = conversions)",
-              description: "This query passes harness validation but fails final validation.",
-              validationSql:
-                "SELECT toDate(timestamp) AS day, count(flaky_metric) AS conversions FROM events GROUP BY day",
-              insightQuery: {
-                kind: "DataVisualizationNode",
-                source: {
-                  kind: "HogQLQuery",
-                  query:
-                    "SELECT toDate(timestamp) AS day, count(flaky_metric) AS conversions FROM events GROUP BY day",
-                },
-                display: "ActionsLineGraph",
-              },
-            },
-          ],
-        };
-      },
-    };
-
-    const agent = new PostHogPocSetupAgent({
-      posthog,
-      llm,
-      secrets: memorySecrets(calls),
-      validation: passValidation(),
-      audit: memoryAudit(),
-      clock: () => new Date("2026-06-04T00:00:00.000Z"),
-    });
-    const plan = {
-      ...minimalApprovedPlan(),
-      setup: {
-        ...minimalApprovedPlan().setup,
-        dashboards: [
-          {
-            name: "Widget Adoption",
-            description: "PM dashboard",
-            tiles: [],
-          },
-        ],
-      },
-    };
-
-    const result = await agent.setup(plan);
-
-    expect(calls).not.toContain("createDashboard:Widget PM Adoption");
-    expect(calls).not.toContain(
-      "createInsight:Sessions by landing page (x = landing page, y = sessions)",
-    );
-    expect(calls).not.toContain(
-      "createInsight:Flaky conversion metric by day (x = day, y = conversions)",
-    );
-    expect(result.knownGaps.join(" ")).toContain("was not created");
-    expect(result.knownGaps.join(" ")).toContain("Unknown identifier flaky_metric");
     expect(result.skippedResources).toContainEqual(
       expect.objectContaining({
-        resource: { type: "dashboard", name: "Widget PM Adoption" },
+        resource: { type: "insight", name: "poc_123: Bad generated metric" },
+        reason: expect.stringContaining("Unknown identifier bad_metric"),
       }),
     );
   });

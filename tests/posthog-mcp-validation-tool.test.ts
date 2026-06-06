@@ -2,7 +2,7 @@ import { PostHogMcpValidationTool } from "../src/posthog/posthog-mcp-validation-
 import type { McpToolClient } from "../src/mcp/types.js";
 
 describe("PostHogMcpValidationTool", () => {
-  it("passes when PostHog MCP project, schema, and SQL checks succeed", async () => {
+  it("passes when PostHog MCP project, dashboard, schema, and SQL checks succeed", async () => {
     const calls: { name: string; args: Record<string, unknown> }[] = [];
     const toolClient: McpToolClient = {
       async callTool(name, args) {
@@ -34,11 +34,13 @@ describe("PostHogMcpValidationTool", () => {
       "actions",
       "dashboards",
       "insights",
+      "dashboard-widgets",
       "data-schema",
       "sql-smoke",
     ]);
     expect(calls.map((call) => call.name)).toEqual([
       "project-get",
+      "dashboard-widgets-run",
       "read-data-schema",
       "execute-sql",
     ]);

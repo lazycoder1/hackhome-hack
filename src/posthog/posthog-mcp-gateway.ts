@@ -26,9 +26,7 @@ export class PostHogMcpGateway implements PostHogToolGateway {
   }
 
   async getProject(projectId: string): Promise<PostHogProject> {
-    const result = asRecord(
-      await this.toolClient.callTool("project-get", { id: projectIdArg(projectId) }),
-    );
+    const result = asRecord(await this.toolClient.callTool("project-get", { id: projectIdArg(projectId) }));
 
     return {
       id: stringField(result, "id", projectId),
@@ -86,7 +84,6 @@ export class PostHogMcpGateway implements PostHogToolGateway {
     projectId: string;
     dashboardId: string;
     name: string;
-    description?: string;
     type: string;
     sourceEvents?: string[];
     query?: Record<string, unknown>;
@@ -95,7 +92,6 @@ export class PostHogMcpGateway implements PostHogToolGateway {
     const result = asRecord(
       await this.toolClient.callTool("insight-create", {
         name: input.name,
-        description: input.description,
         dashboards: dashboardIds(input.dashboardId),
         query: input.query ?? insightQuery(input),
         tags: input.tags,
@@ -110,7 +106,7 @@ export class PostHogMcpGateway implements PostHogToolGateway {
     query?: Record<string, unknown>;
   }): Promise<unknown> {
     return await this.toolClient.callTool("read-data-schema", {
-      query: input.query ?? { kind: "events" },
+      query: input.query ?? { kind: "DataSchemaQuery" },
     });
   }
 
@@ -242,6 +238,7 @@ export function posthogMcpEndpoint(): string {
     "project-settings-update",
     "action-create",
     "dashboard-create",
+    "dashboard-widgets-run",
     "insight-create",
     "cohorts-create",
     "create-feature-flag",
@@ -320,9 +317,8 @@ function parseMcpTextRecord(value: string): Record<string, unknown> {
       continue;
     }
     const rawValue = match[2].trim();
-    record[match[1]] = /^-?\d+$/.test(rawValue)
-      ? Number(rawValue)
-      : rawValue.replace(/^"(.*)"$/, "$1");
+    record[match[1]] =
+      /^-?\d+$/.test(rawValue) ? Number(rawValue) : rawValue.replace(/^"(.*)"$/, "$1");
   }
   return record;
 }

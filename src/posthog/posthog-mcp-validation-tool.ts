@@ -54,13 +54,20 @@ export class PostHogMcpValidationTool implements ValidationTool {
       resourceGroupCheck("insights", "Insights created", input.expectedResources.insights),
     ];
 
-    // Note: PostHog MCP exposes no dashboard read-back / widgets-run tool, so dashboard
-    // existence is evidenced by the real id/url returned at creation time (resourceGroupCheck).
+    if (input.expectedResources.dashboards[0]) {
+      checks.push(
+        await this.liveCheck("dashboard-widgets", "Dashboard widgets run", () =>
+          this.toolClient.callTool("dashboard-widgets-run", {
+            id: dashboardIdArg(input.expectedResources.dashboards[0]?.id),
+          }),
+        ),
+      );
+    }
 
     checks.push(
       await this.liveCheck("data-schema", "Data schema is readable", () =>
         this.toolClient.callTool("read-data-schema", {
-          query: { kind: "events" },
+          query: "events",
         }),
       ),
     );
@@ -74,7 +81,7 @@ export class PostHogMcpValidationTool implements ValidationTool {
     if (input.expectedEvents?.length) {
       checks.push(
         await this.liveCheck("trends-query", "Trends query runs", () =>
-          this.toolClient.callTool("execute-sql", {
+        this.toolClient.callTool("execute-sql", {
             query: trendsQuery(input.expectedEvents ?? []),
           }),
         ),
@@ -83,7 +90,7 @@ export class PostHogMcpValidationTool implements ValidationTool {
     if ((input.expectedEvents?.length ?? 0) >= 2) {
       checks.push(
         await this.liveCheck("funnel-query", "Funnel query runs", () =>
-          this.toolClient.callTool("execute-sql", {
+        this.toolClient.callTool("execute-sql", {
             query: funnelQuery(input.expectedEvents ?? []),
           }),
         ),
@@ -147,6 +154,14 @@ export class PostHogMcpValidationTool implements ValidationTool {
 
 function projectIdArg(projectId: string): number | "@current" {
   return projectId === "@current" ? "@current" : Number(projectId);
+}
+
+function dashboardIdArg(dashboardId: string | undefined): number | string | undefined {
+  if (!dashboardId) {
+    return dashboardId;
+  }
+  const numeric = Number(dashboardId);
+  return Number.isFinite(numeric) ? numeric : dashboardId;
 }
 
 function resourceGroupCheck(

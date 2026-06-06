@@ -337,7 +337,7 @@ export class Orchestrator {
         "Evaluate PostHog for the requested PoC.",
       successCriteria: json.successCriteria?.length
         ? json.successCriteria
-        : (hintRequirements.successCriteria ?? ["Confirm PostHog setup works"]),
+        : ["Confirm PostHog setup works"],
       appContext: {
         platform: json.appContext?.platform?.length
           ? json.appContext.platform
@@ -368,14 +368,8 @@ export class Orchestrator {
       },
       securityConstraints: json.securityConstraints,
       timeline: json.timeline,
-      assumptions: uniqueStrings([
-        ...(hintRequirements.assumptions ?? []),
-        ...(json.assumptions ?? []),
-      ]),
-      openQuestions: uniqueStrings([
-        ...(hintRequirements.openQuestions ?? []),
-        ...(json.openQuestions ?? []),
-      ]),
+      assumptions: json.assumptions ?? [],
+      openQuestions: json.openQuestions ?? [],
       source: {
         sourceKind: input.source,
         sourceId: input.sourceMetadata.sourceId,
@@ -607,9 +601,6 @@ function requirementsFromStructuredHints(
 
   return {
     businessGoal: stringField(hints.businessGoal),
-    successCriteria: stringArray(hints.successCriteria),
-    assumptions: stringArray(hints.assumptions),
-    openQuestions: stringArray(hints.openQuestions),
     appContext: appContext
       ? {
           platform: platformArray(appContext.platform) ?? ["unknown"],
@@ -669,8 +660,7 @@ function normalizeDashboards(
   const fallbackTiles = fallbackDashboards[0]?.tiles ?? [];
   return dashboards.map((dashboard) => ({
     ...dashboard,
-    tiles:
-      Array.isArray(dashboard.tiles) && dashboard.tiles.length ? dashboard.tiles : fallbackTiles,
+    tiles: Array.isArray(dashboard.tiles) && dashboard.tiles.length ? dashboard.tiles : fallbackTiles,
   }));
 }
 

@@ -1,4 +1,5 @@
 import type {
+  ActivityEvent,
   PocLifecycleStatus,
   PocMonitoringReport,
   PocPlan,
@@ -44,6 +45,12 @@ export type PocStatusReadApi = {
     input?: { limit?: number },
   ): Promise<{
     reports: PocMonitoringReport[];
+  }>;
+  activity(
+    pocId: string,
+    input?: { limit?: number },
+  ): Promise<{
+    events: ActivityEvent[];
   }>;
 };
 
@@ -102,6 +109,15 @@ export class PocStatusReader implements PocStatusReadApi {
   ): Promise<{ reports: PocMonitoringReport[] }> {
     return {
       reports: await this.store.listMonitoringReports(pocId, { limit: input.limit }),
+    };
+  }
+
+  async activity(
+    pocId: string,
+    input: { limit?: number } = {},
+  ): Promise<{ events: ActivityEvent[] }> {
+    return {
+      events: await this.store.listActivityEvents(pocId, { limit: input.limit }),
     };
   }
 

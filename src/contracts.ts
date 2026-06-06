@@ -432,6 +432,48 @@ export type PocMonitoringReport = {
   };
 };
 
+/**
+ * A durable record of one thing the orchestrator did or proposed for a PoC. Powers the
+ * Agent Activity Feed and the nudge-dedup logic in the always-on loop. Kept product-agnostic
+ * (no PostHog-specific fields) so it survives the move to a horizontal TelemetryAdapter.
+ */
+export type ActivityEvent = {
+  id: string;
+  pocId: string;
+  ts: string;
+  kind:
+    | "monitor_tick"
+    | "classification"
+    | "action_proposed"
+    | "action_gated"
+    | "action_sent"
+    | "escalation"
+    | "llm_activated"
+    | "skipped"
+    | "email_sent"
+    | "email_received"
+    | "nudge_decision"
+    | "audit";
+  actor:
+    | "pov_loop"
+    | "monitoring_agent"
+    | "orchestrator"
+    | "setup_agent"
+    | "validation_runner"
+    | "human"
+    | "system";
+  summary: string;
+  status: "proposed" | "gated" | "sent" | "succeeded" | "failed" | "skipped";
+  /** Stable key used to rate-limit/dedup repeated actions (e.g. "nudge:inactive"). */
+  cadenceKey?: string;
+  refs?: {
+    approvalTokenId?: string;
+    monitoringRunId?: string;
+    emailId?: string;
+  };
+  payload?: Record<string, unknown>;
+};
+
 export type HandoffPackage = {
   pocId: string;
   recipients: string[];

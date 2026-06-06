@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type {
+  ActivityEvent,
   PocLifecycleStatus,
   PocMonitoringReport,
   PocPlan,
@@ -160,6 +161,39 @@ export class SqlitePocStore implements PocStore {
     return (await this.listMonitoringReports(pocId, { limit: 1 }))[0];
   }
 
+  async saveActivityEvent(event: ActivityEvent): Promise<void> {
+    const record = await this.getPoc(event.pocId);
+    if (!record) {
+      throw new Error(`Unknown PoC: ${event.pocId}`);
+    }
+
+    this.db
+      .prepare(
+        `
+        INSERT OR REPLACE INTO activity_events (id, poc_id, ts, body)
+        VALUES (?, ?, ?, ?)
+        `,
+      )
+      .run(event.id, event.pocId, event.ts, stringify(event));
+  }
+
+  async listActivityEvents(
+    pocId: string,
+    input: { limit?: number } = {},
+  ): Promise<ActivityEvent[]> {
+    return this.db
+      .prepare(
+        `
+        SELECT body FROM activity_events
+        WHERE poc_id = ?
+        ORDER BY ts DESC, id DESC
+        LIMIT ?
+        `,
+      )
+      .all(pocId, input.limit ?? 50)
+      .map((row) => parseRow<ActivityEvent>(row));
+  }
+
   close(): void {
     this.db.close();
   }
@@ -196,6 +230,14 @@ export class SqlitePocStore implements PocStore {
         body TEXT NOT NULL,
         PRIMARY KEY (poc_id, run_id)
       );
+
+      CREATE TABLE IF NOT EXISTS activity_events (
+        id TEXT PRIMARY KEY,
+        poc_id TEXT NOT NULL,
+        ts TEXT NOT NULL,
+        body TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_activity_poc_ts ON activity_events (poc_id, ts DESC);
     `);
   }
 }

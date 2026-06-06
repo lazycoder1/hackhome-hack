@@ -11,6 +11,7 @@ import {
   ValidationBadge,
 } from "../components/ui";
 import { Story } from "../components/Story";
+import { ActivityView } from "../components/ActivityView";
 import { LIFECYCLE_ORDER, STATUS_META, isAwaitingApproval, phaseOf, statusValidationTone, timeAgo } from "../lifecycle";
 import { usePoc } from "../hooks";
 import type {
@@ -21,8 +22,8 @@ import type {
   ValidationReport,
 } from "../types";
 
-type Tab = "plan" | "setup" | "validation" | "handoff";
-const TAB_IDS: Tab[] = ["plan", "setup", "validation", "handoff"];
+type Tab = "plan" | "setup" | "validation" | "handoff" | "activity";
+const TAB_IDS: Tab[] = ["plan", "setup", "validation", "handoff", "activity"];
 
 export function PocDetailPage() {
   const { pocId } = useParams();
@@ -69,6 +70,7 @@ export function PocDetailPage() {
     { id: "setup", label: "Setup & Resources", enabled: Boolean(setup), story: "US-O6" },
     { id: "validation", label: "Validation", enabled: Boolean(validation), story: "US-O7" },
     { id: "handoff", label: "Handoff", enabled: Boolean(setup), story: "US-C4" },
+    { id: "activity", label: "Agent Activity", enabled: true, story: "US-O8" },
   ];
 
   return (
@@ -141,6 +143,7 @@ export function PocDetailPage() {
         {tab === "setup" && setup && <SetupView setup={setup} />}
         {tab === "validation" && validation && <ValidationView report={validation} />}
         {tab === "handoff" && setup && <HandoffTabView poc={poc} setup={setup} />}
+        {tab === "activity" && <ActivityView poc={poc} />}
       </div>
     </>
   );

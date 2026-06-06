@@ -1,4 +1,5 @@
 import type {
+  ActivityEvent,
   PocLifecycleStatus,
   PocMonitoringReport,
   PocPlan,
@@ -14,6 +15,7 @@ export class InMemoryPocStore implements PocStore {
   private readonly plans = new Map<string, PocPlan>();
   private readonly setupResults = new Map<string, SetupResult>();
   private readonly monitoringReports = new Map<string, PocMonitoringReport[]>();
+  private readonly activityEvents = new Map<string, ActivityEvent[]>();
 
   async createPoc(record: PocRecord): Promise<void> {
     this.pocs.set(record.pocId, record);
@@ -89,6 +91,22 @@ export class InMemoryPocStore implements PocStore {
     return (await this.listMonitoringReports(pocId, { limit: 1 }))[0];
   }
 
+  async saveActivityEvent(event: ActivityEvent): Promise<void> {
+    this.requirePoc(event.pocId);
+    const events = this.activityEvents.get(event.pocId) ?? [];
+    const next = [...events.filter((existing) => existing.id !== event.id), event].sort(
+      sortEventsNewestFirst,
+    );
+    this.activityEvents.set(event.pocId, next);
+  }
+
+  async listActivityEvents(
+    pocId: string,
+    input: { limit?: number } = {},
+  ): Promise<ActivityEvent[]> {
+    return (this.activityEvents.get(pocId) ?? []).slice(0, input.limit ?? 50);
+  }
+
   private requirePoc(pocId: string): PocRecord {
     const record = this.pocs.get(pocId);
     if (!record) {
@@ -104,4 +122,8 @@ export class InMemoryPocStore implements PocStore {
 
 function sortReportsNewestFirst(left: PocMonitoringReport, right: PocMonitoringReport): number {
   return right.checkedAt.localeCompare(left.checkedAt);
+}
+
+function sortEventsNewestFirst(left: ActivityEvent, right: ActivityEvent): number {
+  return right.ts.localeCompare(left.ts);
 }

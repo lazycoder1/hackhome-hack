@@ -1,12 +1,5 @@
 import type { PocPlan, PosthogResourceRef, SetupResult } from "../contracts.js";
 import type { LlmJsonClient } from "../llm/types.js";
-import {
-  evidenceSummary,
-  type AgenticDashboardSpec,
-  type AgenticDashboardTile,
-  type AgenticEvidence,
-  PostHogAgenticDashboardHarness,
-} from "./posthog-agentic-dashboard-harness.js";
 import type {
   AuditTool,
   PostHogEventCaptureTool,
@@ -28,9 +21,32 @@ export type PostHogPocSetupAgentOptions = {
   clock?: () => Date;
 };
 
-type DashboardTileForCreation = PocPlan["setup"]["dashboards"][number]["tiles"][number] & {
+type AgenticDashboardTile = {
+  title: string;
   description?: string;
+  validationSql: string;
+  insightQuery: Record<string, unknown>;
+};
+
+type DashboardTileForCreation = PocPlan["setup"]["dashboards"][number]["tiles"][number] & {
   insightQuery?: Record<string, unknown>;
+};
+
+type AgenticDashboardSpec = {
+  dashboardName?: string;
+  dashboardDescription?: string;
+  clarificationRequired: boolean;
+  clarificationQuestions: string[];
+  tiles: AgenticDashboardTile[];
+  notes: string[];
+};
+
+type AgenticEvidence = {
+  schema?: unknown;
+  topEvents?: unknown;
+  eventProperties?: unknown;
+  candidatePages?: unknown;
+  errors: string[];
 };
 
 export class PostHogPocSetupAgent {
@@ -118,9 +134,7 @@ export class PostHogPocSetupAgent {
         });
         if (agenticSpec?.clarificationRequired) {
           const questions = agenticSpec.clarificationQuestions.join("; ");
-          knownGaps.push(
-            `DeepSeek requested business clarification before dashboard creation: ${questions}`,
-          );
+          knownGaps.push(`DeepSeek requested business clarification before dashboard creation: ${questions}`);
           skippedResources.push({
             reason: `DeepSeek requested business clarification before dashboard creation: ${questions}`,
             resource: { type: "dashboard", name: dashboard.name },
@@ -129,28 +143,17 @@ export class PostHogPocSetupAgent {
         }
 
         const validatedTiles = agenticSpec
-          ? await this.validateAgenticTiles({
+          ? await this.validatedAgenticTiles({
+              pocId: plan.pocId,
               projectId,
+              dashboardName: agenticSpec.dashboardName ?? dashboard.name,
               tiles: agenticSpec.tiles,
               knownGaps,
               skippedResources,
             })
           : undefined;
 
-        if (agenticSpec && validatedTiles?.issues.length) {
-          const reason = [
-            `DeepSeek dashboard "${agenticSpec.dashboardName ?? dashboard.name}" was not created because one or more generated chart queries failed final PostHog validation.`,
-            ...validatedTiles.issues,
-          ].join(" ");
-          knownGaps.push(reason);
-          skippedResources.push({
-            reason,
-            resource: { type: "dashboard", name: agenticSpec.dashboardName ?? dashboard.name },
-          });
-          continue;
-        }
-
-        if (agenticSpec && !validatedTiles?.tiles.length) {
+        if (agenticSpec && !validatedTiles?.length) {
           knownGaps.push(
             `DeepSeek did not produce any PostHog queries that validated for dashboard "${dashboard.name}".`,
           );
@@ -177,18 +180,17 @@ export class PostHogPocSetupAgent {
         createdResources.push(dashboardRef);
 
         const tiles =
-          validatedTiles?.tiles.map(agenticTileForCreation) ??
+          validatedTiles?.map(agenticTileForCreation) ??
           dashboardTiles(dashboard.tiles, plan.setup.events);
         for (const tile of tiles) {
           const insight = await createOrUseExistingResource({
             type: "insight",
-            name: tile.title,
+            name: `${plan.pocId}: ${tile.title}`,
             create: () =>
               this.posthog.createInsight({
                 projectId,
                 dashboardId: dashboardRef.id,
-                name: tile.title,
-                description: tile.description ?? tile.successCriterion,
+                name: `${plan.pocId}: ${tile.title}`,
                 type: tile.type,
                 sourceEvents: tile.sourceEvents,
                 query: "insightQuery" in tile ? tile.insightQuery : undefined,
@@ -469,64 +471,63 @@ export class PostHogPocSetupAgent {
 
     try {
       const evidence = await this.collectAgenticEvidence(input.projectId);
-      await this.audit.writeAuditLog({
-        pocId: input.plan.pocId,
-        actor: "posthog_setup_agent",
-        action: "data_reconnaissance_completed",
-        target: input.projectId,
-        outputSummary: evidenceSummary(evidence),
-        status: evidence.errors.length ? "skipped" : "succeeded",
-        error: evidence.errors.length ? evidence.errors.join("; ") : undefined,
-        createdAt: this.clock().toISOString(),
-      });
-
-      const harness = new PostHogAgenticDashboardHarness({
-        llm: this.llm,
+      const raw = await this.llm.completeJson({
         model: this.agenticDashboardModel,
-        executeSql: (queryInput) =>
-          this.posthog.executeSql?.(queryInput) ?? Promise.resolve(undefined),
-      });
-      const result = await harness.plan({
-        plan: input.plan,
-        dashboard: input.dashboard,
-        projectId: input.projectId,
-        evidence,
-      });
-
-      await this.audit.writeAuditLog({
-        pocId: input.plan.pocId,
-        actor: "posthog_setup_agent",
-        action: "dashboard_harness_completed",
-        target: input.projectId,
-        outputSummary: `${result.status} after ${result.attempts} attempt(s)`,
-        status:
-          result.status === "validated" || result.status === "needs_clarification"
-            ? "succeeded"
-            : "failed",
-        error: result.status === "failed" ? result.repairFeedback.join("; ") : undefined,
-        createdAt: this.clock().toISOString(),
-      });
-
-      if (result.status === "validated" || result.status === "needs_clarification") {
-        const caveats = agenticDashboardCaveats(result.spec);
-        if (caveats.length) {
-          await this.audit.writeAuditLog({
+        system: [
+          "You design PostHog PoC dashboards for pre-sales pilots.",
+          "Return JSON only. Do not hardcode guessed event names when live evidence is provided.",
+          "Use the buyer's business goal, success criteria, open questions, and PostHog evidence.",
+          "If business definitions are missing, set clarificationRequired true and ask concise business-language questions.",
+          "Do not ask technical questions about SQL, MCP, schemas, implementation, or dashboard widget types.",
+          "Choose a distinct dashboardName that can coexist with earlier generic or synthetic setup dashboards. Make the name PM/business-oriented and include the PoC id suffix when useful.",
+          "Every tile must include validationSql and insightQuery.",
+          "validationSql must be a PostHog HogQL/SQL query that can be run with execute-sql.",
+          "insightQuery must be a PostHog query object suitable for insight-create. For SQL-style tiles, use kind DataVisualizationNode with a HogQLQuery source.",
+          "Exclude synthetic PoC validation or smoke-test events from PM adoption dashboards unless they are the only available data and clearly mark that as a note.",
+        ].join(" "),
+        user: JSON.stringify({
+          poc: {
             pocId: input.plan.pocId,
-            actor: "posthog_setup_agent",
-            action: "dashboard_caveats_recorded",
-            target: input.projectId,
-            outputSummary: caveats.join(" | "),
-            status: "succeeded",
-            createdAt: this.clock().toISOString(),
-          });
-        }
-        return result.spec;
-      }
+            customer: input.plan.customer,
+            objective: input.plan.objective,
+            successCriteria: input.plan.successCriteria,
+            assumptions: input.plan.assumptions,
+            openQuestions: input.plan.openQuestions,
+            appContext: {
+              projectName: input.plan.posthogTarget.projectName,
+              projectId: input.projectId,
+            },
+            requestedDashboard: input.dashboard,
+            plannedEvents: input.plan.setup.events,
+          },
+          evidence,
+          expectedOutput: {
+            dashboardName: "string",
+            dashboardDescription: "string",
+            clarificationRequired: "boolean",
+            clarificationQuestions: ["business question"],
+            notes: ["business or data caveat"],
+            tiles: [
+              {
+                title: "business metric title",
+                description: "what this tile tells a PM",
+                validationSql: "SELECT ...",
+                insightQuery: {
+                  kind: "DataVisualizationNode",
+                  source: { kind: "HogQLQuery", query: "same or equivalent SQL" },
+                },
+              },
+            ],
+          },
+        }),
+      });
 
-      input.knownGaps.push(
-        `DeepSeek did not produce a dashboard spec that passed quality and SQL validation: ${result.repairFeedback.join("; ")}`,
-      );
-      return undefined;
+      const spec = normalizeAgenticDashboardSpec(raw);
+      if (!spec) {
+        input.knownGaps.push("DeepSeek did not return a usable dashboard specification.");
+        return undefined;
+      }
+      return spec;
     } catch (error) {
       input.knownGaps.push(`DeepSeek dashboard planning failed: ${(error as Error).message}`);
       return undefined;
@@ -557,38 +558,15 @@ LIMIT 50
       evidence.errors,
     );
 
-    evidence.conversionSignalCandidates = await this.safeExecuteSql(
+    evidence.eventProperties = await this.safeExecuteSql(
       projectId,
       `
-SELECT event, count() AS event_count, uniq(person_id) AS unique_people, min(timestamp) AS first_seen, max(timestamp) AS last_seen
+SELECT event, groupUniqArrayArray(mapKeys(properties)) AS property_keys
 FROM events
 WHERE timestamp >= now() - INTERVAL 30 DAY
-  AND event NOT IN ('$pageview', '$pageleave', '$web_vitals', '$autocapture')
 GROUP BY event
-ORDER BY event_count DESC
-LIMIT 75
-`.trim(),
-      evidence.errors,
-    );
-
-    evidence.scopedPageActivity = await this.safeExecuteSql(
-      projectId,
-      `
-SELECT event, url, count() AS event_count, uniqExact(session_id) AS sessions
-FROM (
-  SELECT
-    event,
-    lower(toString(coalesce(properties['$current_url'], properties['$session_entry_url'], properties['$referrer'], ''))) AS url,
-    properties['$session_id'] AS session_id
-  FROM events
-  WHERE timestamp >= now() - INTERVAL 30 DAY
-)
-WHERE url != ''
-  AND url NOT LIKE '%localhost%'
-  AND url NOT LIKE '%127.0.0.1%'
-GROUP BY event, url
-ORDER BY event_count DESC
-LIMIT 100
+ORDER BY count() DESC
+LIMIT 25
 `.trim(),
       evidence.errors,
     );
@@ -596,20 +574,13 @@ LIMIT 100
     evidence.candidatePages = await this.safeExecuteSql(
       projectId,
       `
-SELECT url, count() AS event_count, uniqExact(session_id) AS sessions
-FROM (
-  SELECT
-    lower(toString(coalesce(properties['$current_url'], properties['$session_entry_url'], properties['$referrer'], ''))) AS url,
-    properties['$session_id'] AS session_id
-  FROM events
-  WHERE timestamp >= now() - INTERVAL 30 DAY
-)
-WHERE url != ''
-  AND url NOT LIKE '%localhost%'
-  AND url NOT LIKE '%127.0.0.1%'
-GROUP BY url
+SELECT event, properties['$current_url'] AS url, count() AS event_count
+FROM events
+WHERE timestamp >= now() - INTERVAL 30 DAY
+  AND properties['$current_url'] IS NOT NULL
+GROUP BY event, url
 ORDER BY event_count DESC
-LIMIT 100
+LIMIT 50
 `.trim(),
       evidence.errors,
     );
@@ -633,18 +604,19 @@ LIMIT 100
     }
   }
 
-  private async validateAgenticTiles(input: {
+  private async validatedAgenticTiles(input: {
+    pocId: string;
     projectId: string;
+    dashboardName: string;
     tiles: AgenticDashboardTile[];
     knownGaps: string[];
     skippedResources: SetupResult["skippedResources"];
-  }): Promise<{ tiles: AgenticDashboardTile[]; issues: string[] }> {
+  }): Promise<AgenticDashboardTile[]> {
     if (!this.posthog.executeSql) {
-      return { tiles: [], issues: ["PostHog SQL validation is unavailable."] };
+      return [];
     }
 
     const validated: AgenticDashboardTile[] = [];
-    const issues: string[] = [];
     for (const tile of input.tiles) {
       try {
         await this.posthog.executeSql({
@@ -654,16 +626,15 @@ LIMIT 100
         validated.push(tile);
       } catch (error) {
         const reason = `DeepSeek-generated query did not validate for "${tile.title}": ${(error as Error).message}`;
-        issues.push(reason);
         input.knownGaps.push(reason);
         input.skippedResources.push({
           reason,
-          resource: { type: "insight", name: tile.title },
+          resource: { type: "insight", name: `${input.pocId}: ${tile.title}` },
         });
       }
     }
 
-    return { tiles: validated, issues };
+    return validated;
   }
 }
 
@@ -681,20 +652,50 @@ function dashboardTiles(
   }));
 }
 
-function agenticDashboardCaveats(spec: AgenticDashboardSpec): string[] {
-  const tileCaveats = spec.tiles
-    .filter((tile) => tile.description)
-    .map((tile) => `${tile.title}: ${tile.description}`);
-  return [...spec.notes, ...tileCaveats];
-}
-
 function agenticTileForCreation(tile: AgenticDashboardTile): DashboardTileForCreation {
   return {
     title: tile.title,
-    description: tile.description,
     type: "other",
     sourceEvents: [],
     insightQuery: tile.insightQuery,
+  };
+}
+
+function normalizeAgenticDashboardSpec(value: unknown): AgenticDashboardSpec | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const tiles = Array.isArray(value.tiles)
+    ? value.tiles.map(normalizeAgenticDashboardTile).filter((tile): tile is AgenticDashboardTile => Boolean(tile))
+    : [];
+
+  return {
+    dashboardName: optionalString(value.dashboardName),
+    dashboardDescription: optionalString(value.dashboardDescription),
+    clarificationRequired: Boolean(value.clarificationRequired),
+    clarificationQuestions: stringArray(value.clarificationQuestions),
+    tiles,
+    notes: stringArray(value.notes),
+  };
+}
+
+function normalizeAgenticDashboardTile(value: unknown): AgenticDashboardTile | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const title = optionalString(value.title);
+  const validationSql = optionalString(value.validationSql);
+  const insightQuery = value.insightQuery;
+  if (!title || !validationSql || !isRecord(insightQuery)) {
+    return undefined;
+  }
+
+  return {
+    title,
+    description: optionalString(value.description),
+    validationSql,
+    insightQuery,
   };
 }
 
@@ -801,6 +802,20 @@ function buildSdkInstructions(plan: PocPlan, hostUrl: string): SetupResult["sdkI
       "Capture the PoC test events listed in the handoff testing plan.",
     ].join("\n"),
   }));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function dedupe(values: string[]): string[] {

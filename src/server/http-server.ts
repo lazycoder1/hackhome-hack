@@ -4,6 +4,7 @@ import type { PocStatusReadApi } from "../status/poc-status-reader.js";
 import { normalizeGmailMcpInboundEmail } from "../tools/gmail-mcp-inbound-normalizer.js";
 import type { EmailTool, SecretsTool } from "../tools/types.js";
 import type { WorkflowApi } from "../workflow/workflow-api.js";
+import type { NudgeApprovalService } from "../workflow/nudge-approval-service.js";
 import {
   HttpError,
   parseBody,
@@ -28,6 +29,7 @@ export type HttpApiServerOptions = {
   googleApiDraftEmail?: Pick<EmailTool, "sendEmail"> & {
     createDraft(input: Parameters<EmailTool["sendEmail"]>[0]): ReturnType<EmailTool["sendEmail"]>;
   };
+  nudges?: Pick<NudgeApprovalService, "complete">;
 };
 
 export function createHttpApiServer(options: HttpApiServerOptions): Server {
@@ -218,7 +220,48 @@ async function routeRequest(
   const pocId = pocIdFromPath(url.pathname);
   const monitoringPocId = monitoringPocIdFromPath(url.pathname);
   const monitoringRunPocId = monitoringRunPocIdFromPath(url.pathname);
+  const activityPocId = activityPocIdFromPath(url.pathname);
   const retryPocId = retryPocIdFromPath(url.pathname);
+
+  if (method === "GET" && activityPocId) {
+    if (!options.statusReader) {
+      sendJson(response, 503, { error: "status_reader_not_configured" });
+      return;
+    }
+
+    const result = await options.statusReader.activity(activityPocId, {
+      limit: parseLimit(url.searchParams.get("limit")),
+    });
+    sendJson(response, 200, result);
+    return;
+  }
+
+  const nudge = nudgeFromPath(url.pathname);
+  if (method === "POST" && nudge) {
+    if (!options.nudges) {
+      sendJson(response, 503, { error: "nudges_not_configured" });
+      return;
+    }
+    const raw = await readRawBody(request);
+    const body = (raw ? JSON.parse(raw) : {}) as {
+      decision?: unknown;
+      editedBody?: unknown;
+      decidedBy?: unknown;
+    };
+    if (body.decision !== "approved" && body.decision !== "rejected") {
+      sendJson(response, 400, { error: "invalid_decision" });
+      return;
+    }
+    const result = await options.nudges.complete({
+      pocId: nudge.pocId,
+      tokenId: nudge.tokenId,
+      decision: body.decision,
+      editedBody: typeof body.editedBody === "string" ? body.editedBody : undefined,
+      decidedBy: typeof body.decidedBy === "string" ? body.decidedBy : undefined,
+    });
+    sendJson(response, result.status === "not_found" ? 404 : 200, result);
+    return;
+  }
 
   if (method === "GET" && monitoringPocId) {
     if (!options.statusReader) {
@@ -405,6 +448,18 @@ function monitoringPocIdFromPath(pathname: string): string | undefined {
 function monitoringRunPocIdFromPath(pathname: string): string | undefined {
   const match = /^\/pocs\/([^/]+)\/monitoring\/run$/.exec(pathname);
   return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+function activityPocIdFromPath(pathname: string): string | undefined {
+  const match = /^\/pocs\/([^/]+)\/activity$/.exec(pathname);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+function nudgeFromPath(pathname: string): { pocId: string; tokenId: string } | undefined {
+  const match = /^\/pocs\/([^/]+)\/nudges\/([^/]+)$/.exec(pathname);
+  return match
+    ? { pocId: decodeURIComponent(match[1]), tokenId: decodeURIComponent(match[2]) }
+    : undefined;
 }
 
 function secretTokenFromPath(pathname: string): string | undefined {

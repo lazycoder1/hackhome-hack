@@ -39,9 +39,6 @@ describe("PostHogMcpGateway", () => {
         if (name === "alert-create") {
           return { id: "alert-1", name: args.name };
         }
-        if (name === "read-data-schema") {
-          return { events: [] };
-        }
         return {};
       },
     };
@@ -97,7 +94,6 @@ describe("PostHogMcpGateway", () => {
       condition: "signup_completed drops below 10 per day",
       destination: "buyer@acme.test",
     });
-    await gateway.readDataSchema({ projectId: "project-1" });
 
     expect(project.name).toBe("Acme PoC");
     expect(action).toMatchObject({ type: "action", id: "action-1" });
@@ -118,12 +114,7 @@ describe("PostHogMcpGateway", () => {
       "experiment-create",
       "survey-create",
       "alert-create",
-      "read-data-schema",
     ]);
-    expect(calls.at(-1)).toEqual({
-      name: "read-data-schema",
-      args: { query: { kind: "events" } },
-    });
   });
 
   it("parses text-formatted PostHog MCP resource responses", async () => {

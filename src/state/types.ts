@@ -1,4 +1,5 @@
 import type {
+  ActivityEvent,
   PocLifecycleStatus,
   PocMonitoringReport,
   PocPlan,
@@ -22,4 +23,6 @@ export type PocStore = {
   saveMonitoringReport(report: PocMonitoringReport): Promise<void>;
   listMonitoringReports(pocId: string, input?: { limit?: number }): Promise<PocMonitoringReport[]>;
   getLatestMonitoringReport(pocId: string): Promise<PocMonitoringReport | undefined>;
+  saveActivityEvent(event: ActivityEvent): Promise<void>;
+  listActivityEvents(pocId: string, input?: { limit?: number }): Promise<ActivityEvent[]>;
 };

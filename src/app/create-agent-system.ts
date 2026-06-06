@@ -2,6 +2,8 @@ import { HandoffGenerator } from "../handoff/handoff-generator.js";
 import { DeepSeekClient } from "../llm/deepseek-client.js";
 import type { LlmJsonClient } from "../llm/types.js";
 import { PocMonitoringAgent } from "../monitoring/poc-monitoring-agent.js";
+import { NudgeDrafter } from "../monitoring/nudge-drafter.js";
+import { PovLoopRunner } from "../monitoring/pov-loop-runner.js";
 import { Orchestrator } from "../orchestrator/orchestrator.js";
 import { HttpPostHogEventCaptureTool } from "../posthog/posthog-event-capture-tool.js";
 import { PostHogMcpGateway } from "../posthog/posthog-mcp-gateway.js";
@@ -13,13 +15,13 @@ import { createPocStore, type PocStoreMode } from "../state/create-poc-store.js"
 import type { PocStore } from "../state/types.js";
 import {
   InMemoryApprovalTool,
-  InMemoryAuditTool,
   InMemoryEmailTool,
   InMemoryPostHogEventCaptureTool,
   InMemoryPostHogGateway,
   InMemoryPostHogUsageSnapshotTool,
   ResourceValidationTool,
 } from "../tools/in-memory-tools.js";
+import { StoreBackedAuditTool } from "../tools/store-backed-audit-tool.js";
 import { createSecretsTool, type SecretsMode } from "../tools/create-secrets-tool.js";
 import { GmailApiEmailTool } from "../tools/gmail-api-email-tool.js";
 import { GmailMcpEmailTool, type GmailMcpGateway } from "../tools/gmail-mcp-email-tool.js";
@@ -41,9 +43,11 @@ import { loadConfig, type AppConfig } from "../config.js";
 
 export type AgentSystem = {
   store: PocStore;
+  llm: LlmJsonClient;
   orchestrator: Orchestrator;
   setupAgent: PostHogPocSetupAgent;
   monitoringAgent: PocMonitoringAgent;
+  povLoopRunner: PovLoopRunner;
   workflow: LocalPocWorkflow;
   tools: {
     email: EmailTool;
@@ -126,7 +130,7 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     (options.approvalMode === "local"
       ? new InMemoryApprovalTool({ clock })
       : new TriggerApprovalTool({ baseApprovalUrl: env.APPROVAL_BASE_URL }));
-  const audit = options.audit ?? new InMemoryAuditTool({ clock });
+  const audit = options.audit ?? new StoreBackedAuditTool({ store, clock });
   const posthog =
     options.posthog ??
     (options.posthogMode === "mcp" || (!options.posthogMode && env.POSTHOG_MCP_API_KEY)
@@ -183,6 +187,16 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
     audit,
     clock,
   });
+  const povLoopRunner = new PovLoopRunner({
+    store,
+    monitoringAgent,
+    nudgeDrafter: new NudgeDrafter({ llm }),
+    approval,
+    email,
+    operatorEmails: operatorEmailsFromEnv(env),
+    cooldownHours: nudgeCooldownHoursFromEnv(env),
+    clock,
+  });
   const workflow = new LocalPocWorkflow({
     store,
     setupAgent,
@@ -196,9 +210,11 @@ export function createAgentSystem(options: CreateAgentSystemOptions = {}): Agent
 
   return {
     store,
+    llm,
     orchestrator,
     setupAgent,
     monitoringAgent,
+    povLoopRunner,
     workflow,
     tools: {
       email,
@@ -239,4 +255,18 @@ function emailModeFromEnv(
 
 function gmailMcpDeliveryModeFromEnv(value: string | undefined): "draft" | "send" {
   return value?.toLowerCase() === "send" ? "send" : "draft";
+}
+
+function operatorEmailsFromEnv(env: NodeJS.ProcessEnv): string[] {
+  const raw = env.OPERATOR_EMAILS;
+  const parsed = raw
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return parsed && parsed.length ? parsed : ["solutions-engineer@poc-pilot.local"];
+}
+
+function nudgeCooldownHoursFromEnv(env: NodeJS.ProcessEnv): number | undefined {
+  const value = Number(env.POV_NUDGE_COOLDOWN_HOURS);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
 }

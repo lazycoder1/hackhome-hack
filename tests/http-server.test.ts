@@ -213,6 +213,9 @@ describe("createHttpApiServer", () => {
 
   it("serves compact PoC status lists", async () => {
     const statusReader: PocStatusReadApi = {
+      async activity() {
+        return { events: [] };
+      },
       async list(_input) {
         return {
           pocs: [
@@ -268,6 +271,9 @@ describe("createHttpApiServer", () => {
 
   it("serves PoC status detail", async () => {
     const statusReader: PocStatusReadApi = {
+      async activity() {
+        return { events: [] };
+      },
       async list() {
         return { pocs: [] };
       },
@@ -334,8 +340,54 @@ describe("createHttpApiServer", () => {
     }
   });
 
+  it("serves the agent activity feed for a PoC", async () => {
+    const statusReader: PocStatusReadApi = {
+      async list() {
+        return { pocs: [] };
+      },
+      async detail() {
+        return undefined;
+      },
+      async monitoringReports() {
+        return { reports: [] };
+      },
+      async activity(pocId) {
+        return {
+          events: [
+            {
+              id: "evt_1",
+              pocId,
+              ts: "2026-06-05T12:00:00.000Z",
+              kind: "action_gated",
+              actor: "pov_loop",
+              status: "gated",
+              summary: "Customer nudge queued for SE approval",
+              cadenceKey: "nudge:inactive",
+              refs: { approvalTokenId: "tok_1" },
+            },
+          ],
+        };
+      },
+    };
+    const server = createHttpApiServer({ workflow: fakeWorkflow(), statusReader });
+    const baseUrl = await listen(server);
+
+    try {
+      const response = await fetch(`${baseUrl}/pocs/poc_123/activity`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        events: [{ id: "evt_1", kind: "action_gated", cadenceKey: "nudge:inactive" }],
+      });
+    } finally {
+      await close(server);
+    }
+  });
+
   it("serves monitoring reports for a PoC", async () => {
     const statusReader: PocStatusReadApi = {
+      async activity() {
+        return { events: [] };
+      },
       async list() {
         return { pocs: [] };
       },
@@ -514,6 +566,9 @@ describe("createHttpApiServer", () => {
 
   it("returns 404 for unknown PoC status detail", async () => {
     const statusReader: PocStatusReadApi = {
+      async activity() {
+        return { events: [] };
+      },
       async list() {
         return { pocs: [] };
       },

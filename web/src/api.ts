@@ -1,4 +1,9 @@
-import type { GoogleIntegrationStatus, PocStatusDetail, PocStatusSummary } from "./types";
+import type {
+  ActivityEvent,
+  GoogleIntegrationStatus,
+  PocStatusDetail,
+  PocStatusSummary,
+} from "./types";
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path, { headers: { accept: "application/json" } });
@@ -40,6 +45,19 @@ export const api = {
     notes?: string;
     changes?: string[];
   }) => postJson<{ ok?: boolean; status?: string }>("/approval/complete", payload),
+  getActivity: (pocId: string, limit = 100) =>
+    getJson<{ events: ActivityEvent[] }>(
+      `/pocs/${encodeURIComponent(pocId)}/activity?limit=${limit}`,
+    ).then((r) => r.events),
+  decideNudge: (
+    pocId: string,
+    tokenId: string,
+    payload: { decision: "approved" | "rejected"; editedBody?: string; decidedBy?: string },
+  ) =>
+    postJson<{ status: string; emailId?: string }>(
+      `/pocs/${encodeURIComponent(pocId)}/nudges/${encodeURIComponent(tokenId)}`,
+      payload,
+    ),
   googleStatus: () => getJson<GoogleIntegrationStatus>("/integrations/google/status"),
   forgetGoogleOAuth: () =>
     postJson<GoogleIntegrationStatus>("/integrations/google/oauth/forget", {}),
