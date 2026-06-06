@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { runtimeStoragePath } from "../runtime/railway-runtime.js";
 
 const DEFAULT_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const DEFAULT_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -94,7 +95,11 @@ export class GoogleOAuthTestService {
     this.tokenStorePath =
       options.tokenStorePath ??
       env.GOOGLE_OAUTH_TOKEN_STORE_PATH ??
-      ".data/google-oauth-token.json";
+      runtimeStoragePath({
+        env,
+        filename: "google-oauth-token.json",
+        fallbackPath: ".data/google-oauth-token.json",
+      });
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.clock = options.clock ?? (() => new Date());
     this.token = this.loadToken();

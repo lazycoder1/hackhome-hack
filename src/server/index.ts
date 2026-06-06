@@ -14,6 +14,7 @@ import { createSecretsTool } from "../tools/create-secrets-tool.js";
 import { GoogleOAuthTestService } from "../integrations/google-oauth-test-service.js";
 import type { EmailTool } from "../tools/types.js";
 import { GmailApiEmailTool } from "../tools/gmail-api-email-tool.js";
+import { isRailwayRuntime } from "../runtime/railway-runtime.js";
 
 export function startHttpServer(
   options: {
@@ -24,7 +25,7 @@ export function startHttpServer(
   loadDotenv();
 
   const port = options.port ?? Number(process.env.PORT ?? 3000);
-  const host = options.host ?? process.env.HOST ?? "127.0.0.1";
+  const host = options.host ?? process.env.HOST ?? (isRailwayRuntime() ? "0.0.0.0" : "127.0.0.1");
   const googleOAuth = new GoogleOAuthTestService();
 
   // WORKFLOW_MODE=local runs the full flow in-process (real results, no Trigger deploy needed);

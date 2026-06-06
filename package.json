@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "start": "npm run api:start",
     "api:start": "node dist/src/server/index.js",
     "seed": "node scripts/seed-demo.mjs",
     "build": "tsc -p tsconfig.json",

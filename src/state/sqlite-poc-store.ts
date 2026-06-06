@@ -24,6 +24,7 @@ export class SqlitePocStore implements PocStore {
       mkdirSync(dirname(path), { recursive: true });
     }
     this.db = new DatabaseSync(path);
+    this.configure();
     this.migrate();
   }
 
@@ -238,6 +239,14 @@ export class SqlitePocStore implements PocStore {
         body TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_activity_poc_ts ON activity_events (poc_id, ts DESC);
+    `);
+  }
+
+  private configure(): void {
+    this.db.exec(`
+      PRAGMA busy_timeout = 5000;
+      PRAGMA foreign_keys = ON;
+      PRAGMA journal_mode = WAL;
     `);
   }
 }

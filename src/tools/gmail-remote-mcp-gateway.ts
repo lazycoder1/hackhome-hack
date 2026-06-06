@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { HttpMcpToolClient } from "../mcp/http-mcp-tool-client.js";
 import type { McpToolClient } from "../mcp/types.js";
+import { runtimeStoragePath } from "../runtime/railway-runtime.js";
 import type {
   GmailCreateDraftInput,
   GmailMcpDraft,
@@ -135,7 +136,13 @@ function gmailMcpProviderFromEnv(value: string | undefined): "google" | "workspa
 }
 
 function storedGoogleOAuthAccessToken(env: NodeJS.ProcessEnv): string | undefined {
-  const tokenStorePath = env.GOOGLE_OAUTH_TOKEN_STORE_PATH ?? ".data/google-oauth-token.json";
+  const tokenStorePath =
+    env.GOOGLE_OAUTH_TOKEN_STORE_PATH ??
+    runtimeStoragePath({
+      env,
+      filename: "google-oauth-token.json",
+      fallbackPath: ".data/google-oauth-token.json",
+    });
   try {
     const token = JSON.parse(readFileSync(tokenStorePath, "utf8")) as {
       accessToken?: unknown;

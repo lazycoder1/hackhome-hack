@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { runtimeStoragePath } from "../runtime/railway-runtime.js";
 import type { SecretsTool } from "./types.js";
 
 type EncryptedSecretRecord = {
@@ -49,7 +50,10 @@ export class EncryptedFileSecretsTool implements SecretsTool {
       throw new Error("SECRET_ENCRYPTION_KEY is required for encrypted file secrets");
     }
 
-    this.path = options.path ?? process.env.SECRETS_STORE_PATH ?? ".data/secrets.json";
+    this.path =
+      options.path ??
+      process.env.SECRETS_STORE_PATH ??
+      runtimeStoragePath({ filename: "secrets.json", fallbackPath: ".data/secrets.json" });
     this.key = normalizeEncryptionKey(encryptionKey);
     this.baseSecretUrl =
       options.baseSecretUrl ?? process.env.SECRETS_BASE_URL ?? "http://localhost:3000/secrets";

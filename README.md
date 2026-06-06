@@ -76,8 +76,10 @@ Optional:
 ```bash
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 POC_STORE_MODE=sqlite
-POC_STORE_PATH=.data/pocs.json
-SQLITE_DB_PATH=.data/pocs.sqlite
+# Leave POC_STORE_PATH and SQLITE_DB_PATH unset on Railway so state lands on the
+# attached volume at $RAILWAY_VOLUME_MOUNT_PATH/pocs.sqlite automatically.
+# POC_STORE_PATH=.data/pocs.json
+# SQLITE_DB_PATH=.data/pocs.sqlite
 EMAIL_FROM="PoC Team <poc@example.com>"
 EMAIL_MODE=local
 GMAIL_MCP_ENDPOINT=https://gmailmcp.googleapis.com/mcp/v1
@@ -94,11 +96,13 @@ GMAIL_PROCESSED_LABEL_IDS=Label_123
 GOOGLE_OAUTH_CLIENT_ID=...
 GOOGLE_OAUTH_CLIENT_SECRET=...
 GOOGLE_OAUTH_SCOPES="openid email profile https://mail.google.com/ https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.readonly"
-GOOGLE_OAUTH_TOKEN_STORE_PATH=.data/google-oauth-token.json
+# Leave unset on Railway to use $RAILWAY_VOLUME_MOUNT_PATH/google-oauth-token.json.
+# GOOGLE_OAUTH_TOKEN_STORE_PATH=.data/google-oauth-token.json
 GMAIL_MCP_SMOKE_TO=gautamgsabhahit@gmail.com
 SECRETS_MODE=encrypted_file
 SECRET_ENCRYPTION_KEY=use-a-long-random-secret-or-32-byte-base64-key
-SECRETS_STORE_PATH=.data/secrets.json
+# Leave unset on Railway to use $RAILWAY_VOLUME_MOUNT_PATH/secrets.json.
+# SECRETS_STORE_PATH=.data/secrets.json
 SECRETS_BASE_URL=http://localhost:3000/secrets
 POSTHOG_MCP_API_KEY=phx_...
 POSTHOG_PROJECT_API_KEY=phc_...
@@ -114,7 +118,27 @@ TRIGGER_ACCESS_TOKEN=tr_pat_... # only for `npm run trigger:deploy` / CI; `trigg
 APPROVAL_BASE_URL=http://localhost:3000/approval
 ```
 
-Storage defaults to a local SQLite file so month-long PoC state survives API restarts. Use `SQLITE_DB_PATH` to choose the file path, or set `POC_STORE_MODE=file` for the simpler JSON file store. This PoC intentionally avoids PGSQL.
+Storage defaults to a local SQLite file so month-long PoC state survives API restarts. On Railway, attach a volume and leave `SQLITE_DB_PATH` unset; the backend will use `$RAILWAY_VOLUME_MOUNT_PATH/pocs.sqlite`. Use `SQLITE_DB_PATH` only when you need to force a specific local path, or set `POC_STORE_MODE=file` for the simpler JSON file store. This PoC intentionally avoids PGSQL.
+
+## Railway Deployment
+
+This repo includes `railway.json` so Railway/Railpack knows how to build and start the API:
+
+```bash
+npm ci && npm run build
+npm run api:start
+```
+
+For a SQLite-backed Railway service:
+
+- Attach one volume to the API service at `/data`.
+- Set `POC_STORE_MODE=sqlite`.
+- Leave `SQLITE_DB_PATH`, `SECRETS_STORE_PATH`, and `GOOGLE_OAUTH_TOKEN_STORE_PATH` unset so they default to the attached volume.
+- Set `WORKFLOW_MODE=local` if the API and SQLite volume are the source of truth. Trigger.dev Cloud workers cannot read the Railway service volume.
+- Set `DEEPSEEK_API_KEY` before deploying with `WORKFLOW_MODE=local`; the in-process workflow needs it at boot.
+- Set `SECRETS_MODE=encrypted_file`, `SECRET_ENCRYPTION_KEY`, `SECRETS_BASE_URL`, and `APPROVAL_BASE_URL`.
+
+Railway provides `PORT`; the server binds to `0.0.0.0` automatically when Railway runtime variables are present. Keep the service at one replica when using SQLite on a volume.
 
 Set `EMAIL_MODE=gmail_mcp` to have the app call a Gmail MCP server. The default `GMAIL_MCP_PROVIDER=google` uses Google's Gmail remote MCP tool names: outbound messages become Gmail drafts via `create_draft`; inbox monitoring uses `search_threads` and `get_thread`; processed marking uses `label_thread` with label IDs, not label names. Set `GMAIL_MCP_PROVIDER=workspace` for Workspace MCP-style outbound tool names (`draft_gmail_message` / `send_gmail_message`). `GMAIL_MCP_DELIVERY_MODE=draft` is the safe default; switch it to `send` only after validating the configured MCP server against a test mailbox. See Google's [Gmail MCP setup guide](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server).
 
