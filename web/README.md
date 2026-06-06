@@ -86,3 +86,18 @@ call text and route you to the new PoC on the board.
 npm run build        # tsc -b && vite build → dist/
 npm run lint         # tsc --noEmit
 ```
+
+## Vercel
+
+Production is the Vite app in this `web/` directory. `vercel.json` proxies backend
+API paths to the Railway API at `https://hackhome-hack-production.up.railway.app`
+and falls back all other paths to `index.html` so client routes such as `/settings`
+load directly.
+
+Optional Vercel env:
+
+```bash
+VITE_API_BASE_URL=https://hackhome-hack-production.up.railway.app
+```
+
+Leave it unset when relying on the committed rewrites.

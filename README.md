@@ -116,6 +116,7 @@ TRIGGER_API_URL=https://api.trigger.dev
 TRIGGER_SECRET_KEY=tr_dev_...   # required at runtime when WORKFLOW_MODE=trigger (dashboard "API keys" page)
 TRIGGER_ACCESS_TOKEN=tr_pat_... # only for `npm run trigger:deploy` / CI; `trigger.dev login` covers local dev
 APPROVAL_BASE_URL=http://localhost:3000/approval
+CORS_ALLOWED_ORIGINS=
 ```
 
 Storage defaults to a local SQLite file so month-long PoC state survives API restarts. On Railway, attach a volume and leave `SQLITE_DB_PATH` unset; the backend will use `$RAILWAY_VOLUME_MOUNT_PATH/pocs.sqlite`. Use `SQLITE_DB_PATH` only when you need to force a specific local path, or set `POC_STORE_MODE=file` for the simpler JSON file store. This PoC intentionally avoids PGSQL.
@@ -139,6 +140,10 @@ For a SQLite-backed Railway service:
 - Set `SECRETS_MODE=encrypted_file`, `SECRET_ENCRYPTION_KEY`, `SECRETS_BASE_URL`, and `APPROVAL_BASE_URL`.
 
 Railway provides `PORT`; the server binds to `0.0.0.0` automatically when Railway runtime variables are present. Keep the service at one replica when using SQLite on a volume.
+
+The API allows browser calls from localhost and the `agentic-presales*.vercel.app`
+frontends by default. Add any extra frontend origins to `CORS_ALLOWED_ORIGINS` as a
+comma-separated list.
 
 Set `EMAIL_MODE=gmail_mcp` to have the app call a Gmail MCP server. The default `GMAIL_MCP_PROVIDER=google` uses Google's Gmail remote MCP tool names: outbound messages become Gmail drafts via `create_draft`; inbox monitoring uses `search_threads` and `get_thread`; processed marking uses `label_thread` with label IDs, not label names. Set `GMAIL_MCP_PROVIDER=workspace` for Workspace MCP-style outbound tool names (`draft_gmail_message` / `send_gmail_message`). `GMAIL_MCP_DELIVERY_MODE=draft` is the safe default; switch it to `send` only after validating the configured MCP server against a test mailbox. See Google's [Gmail MCP setup guide](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server).
 

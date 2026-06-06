@@ -1,0 +1,36 @@
+{
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "https://hackhome-hack-production.up.railway.app/health"
+    },
+    {
+      "source": "/pocs/:path*",
+      "destination": "https://hackhome-hack-production.up.railway.app/pocs/:path*"
+    },
+    {
+      "source": "/requirements",
+      "destination": "https://hackhome-hack-production.up.railway.app/requirements"
+    },
+    {
+      "source": "/approval/complete",
+      "destination": "https://hackhome-hack-production.up.railway.app/approval/complete"
+    },
+    {
+      "source": "/email/:path*",
+      "destination": "https://hackhome-hack-production.up.railway.app/email/:path*"
+    },
+    {
+      "source": "/integrations/:path*",
+      "destination": "https://hackhome-hack-production.up.railway.app/integrations/:path*"
+    },
+    {
+      "source": "/secrets/:path*",
+      "destination": "https://hackhome-hack-production.up.railway.app/secrets/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
+}

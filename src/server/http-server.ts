@@ -34,6 +34,13 @@ export type HttpApiServerOptions = {
 
 export function createHttpApiServer(options: HttpApiServerOptions): Server {
   return createServer(async (request, response) => {
+    applyCorsHeaders(request, response);
+    if (request.method === "OPTIONS") {
+      response.statusCode = 204;
+      response.end();
+      return;
+    }
+
     try {
       await routeRequest(request, response, options);
     } catch (error) {
@@ -374,6 +381,59 @@ function redirect(response: ServerResponse, location: string): void {
   response.setHeader("location", location);
   response.setHeader("cache-control", "no-store");
   response.end();
+}
+
+function applyCorsHeaders(request: IncomingMessage, response: ServerResponse): void {
+  const origin = headerValue(request.headers.origin);
+  if (!origin || !isAllowedCorsOrigin(origin)) {
+    return;
+  }
+
+  response.setHeader("access-control-allow-origin", origin);
+  response.setHeader("vary", appendVary(response.getHeader("vary"), "Origin"));
+  response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
+  response.setHeader("access-control-allow-headers", "content-type,accept");
+  response.setHeader("access-control-max-age", "86400");
+}
+
+function isAllowedCorsOrigin(origin: string): boolean {
+  const configured = (process.env.CORS_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (configured.includes(origin)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(origin);
+    if (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1")
+    ) {
+      return true;
+    }
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "agentic-presales.vercel.app" ||
+        url.hostname === "agentic-presales-jiffy-labs.vercel.app" ||
+        url.hostname === "agentic-presales-git-main-jiffy-labs.vercel.app" ||
+        /^agentic-presales-[a-z0-9-]+-jiffy-labs\.vercel\.app$/.test(url.hostname))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function appendVary(current: number | string | string[] | undefined, value: string): string {
+  const values = (Array.isArray(current) ? current.join(",") : String(current ?? ""))
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!values.some((item) => item.toLowerCase() === value.toLowerCase())) {
+    values.push(value);
+  }
+  return values.join(", ");
 }
 
 function requestOrigin(request: IncomingMessage): string {

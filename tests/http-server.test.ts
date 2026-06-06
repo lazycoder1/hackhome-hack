@@ -18,6 +18,35 @@ describe("createHttpApiServer", () => {
     }
   });
 
+  it("allows configured Vercel frontend origins", async () => {
+    const server = createHttpApiServer({ workflow: fakeWorkflow() });
+    const baseUrl = await listen(server);
+
+    try {
+      const origin = "https://agentic-presales.vercel.app";
+      const response = await fetch(`${baseUrl}/health`, {
+        headers: { origin },
+      });
+      const preflight = await fetch(`${baseUrl}/requirements`, {
+        method: "OPTIONS",
+        headers: {
+          origin,
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type",
+        },
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(response.headers.get("vary")).toContain("Origin");
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get("access-control-allow-methods")).toContain("POST");
+      expect(preflight.headers.get("access-control-allow-headers")).toContain("content-type");
+    } finally {
+      await close(server);
+    }
+  });
+
   it("serves and clears Google OAuth connector status", async () => {
     let connected = true;
     const server = createHttpApiServer({

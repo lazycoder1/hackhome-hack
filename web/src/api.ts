@@ -5,16 +5,24 @@ import type {
   PocStatusSummary,
 } from "./types";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
+
+function apiUrl(path: string): string {
+  return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+}
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { accept: "application/json" } });
+  const url = apiUrl(path);
+  const res = await fetch(url, { headers: { accept: "application/json" } });
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText} for ${path}`);
+    throw new Error(`${res.status} ${res.statusText} for ${url}`);
   }
   return (await res.json()) as T;
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
+  const url = apiUrl(path);
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
