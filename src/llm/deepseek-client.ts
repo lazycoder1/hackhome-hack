@@ -14,6 +14,10 @@ type DeepSeekResponse = {
   }[];
 };
 
+function supportsTemperature(model: string): boolean {
+  return !model.startsWith("gpt-5.5");
+}
+
 export class DeepSeekClient implements LlmJsonClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -38,26 +42,26 @@ export class DeepSeekClient implements LlmJsonClient {
           { role: "system", content: input.system },
           { role: "user", content: input.user },
         ],
-        temperature: input.temperature ?? 0,
+        ...(supportsTemperature(input.model) ? { temperature: input.temperature ?? 0 } : {}),
         response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`DeepSeek request failed with ${response.status}: ${text}`);
+      throw new Error(`LLM request failed with ${response.status}: ${text}`);
     }
 
     const body = (await response.json()) as DeepSeekResponse;
     const content = body.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error("DeepSeek response did not include message content");
+      throw new Error("LLM response did not include message content");
     }
 
     try {
       return JSON.parse(content);
     } catch (error) {
-      throw new Error(`DeepSeek response was not valid JSON: ${(error as Error).message}`, {
+      throw new Error(`LLM response was not valid JSON: ${(error as Error).message}`, {
         cause: error,
       });
     }

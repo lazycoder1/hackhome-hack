@@ -42,11 +42,46 @@ describe("DeepSeekClient", () => {
     });
     expect(JSON.parse(String(request.init.body))).toMatchObject({
       model: "deepseek-v4-flash",
+      temperature: 0,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Return JSON only." },
         { role: "user", content: "Say ok." },
       ],
     });
+  });
+
+  it("omits temperature for GPT-5.5 models", async () => {
+    const requests: unknown[] = [];
+    const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify({ ok: true }) } }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    };
+
+    const client = new DeepSeekClient({
+      apiKey: "test-key",
+      baseUrl: "https://api.openai.com/v1",
+      fetchImpl,
+    });
+
+    await client.completeJson({
+      model: "gpt-5.5-high",
+      system: "Return JSON only.",
+      user: "Say ok.",
+      temperature: 0.3,
+    });
+
+    const request = requests[0] as { init: RequestInit };
+    const body = JSON.parse(String(request.init.body));
+    expect(body).toMatchObject({
+      model: "gpt-5.5-high",
+      response_format: { type: "json_object" },
+    });
+    expect(body).not.toHaveProperty("temperature");
   });
 });

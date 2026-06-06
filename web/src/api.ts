@@ -29,9 +29,20 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    throw new Error(readErrorMessage(text) ?? `${res.status} ${res.statusText}: ${text}`);
   }
   return (await res.json()) as T;
+}
+
+function readErrorMessage(text: string): string | undefined {
+  try {
+    const parsed = JSON.parse(text) as { message?: unknown; error?: unknown };
+    if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message;
+    if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export const api = {
