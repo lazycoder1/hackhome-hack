@@ -5,6 +5,10 @@
       "destination": "https://hackhome-hack-production.up.railway.app/health"
     },
     {
+      "source": "/pocs",
+      "destination": "https://hackhome-hack-production.up.railway.app/pocs"
+    },
+    {
       "source": "/pocs/:path*",
       "destination": "https://hackhome-hack-production.up.railway.app/pocs/:path*"
     },
