@@ -131,7 +131,12 @@ export class PovLoopRunner {
       (event) => event.cadenceKey?.startsWith("nudge:") && isActed(event),
     ).length;
 
-    for (const action of decide(report)) {
+    const decideContext = {
+      now: this.clock(),
+      reviewDate: plan.handoffPlan.reviewDate,
+      teardownDate: plan.handoffPlan.teardownDate,
+    };
+    for (const action of decide(report, decideContext)) {
       if (action.type === "keep_monitoring") {
         continue;
       }
@@ -238,13 +243,16 @@ export class PovLoopRunner {
       return;
     }
 
-    // capture_success
+    // Every other internal action (capture_success, revise_plan, schedule_review, extend_poc,
+    // prepare_teardown) is a recommendation the agent surfaces to the SE via the activity feed —
+    // the agent proposes, the SE disposes. Nothing is sent to the customer here.
     await input.record({
       kind: "action_sent",
       actor: "pov_loop",
       status: "succeeded",
       cadenceKey: input.action.cadenceKey,
-      summary: `Success criteria met for ${input.plan.customer.companyName} — evidence captured.`,
+      summary: internalActionSummary(input.action, input.plan),
+      payload: { actionType: input.action.type, urgency: input.action.urgency },
     });
   }
 
@@ -268,6 +276,25 @@ export class PovLoopRunner {
       throw new Error(`No plan v${planVersion} for PoC ${pocId}`);
     }
     return plan;
+  }
+}
+
+/** Feed summary for an internal recommendation surfaced to the SE. */
+function internalActionSummary(action: ProposedAction, plan: PocPlan): string {
+  const company = plan.customer.companyName;
+  switch (action.type) {
+    case "capture_success":
+      return `Success criteria met for ${company} — evidence captured.`;
+    case "revise_plan":
+      return `Plan drift detected for ${company} — proposing a POV plan revision for SE review.`;
+    case "schedule_review":
+      return `Enough evidence gathered for ${company} — proposing the go/no-go review.`;
+    case "extend_poc":
+      return `${company} is progressing but late — proposing a POV extension.`;
+    case "prepare_teardown":
+      return `Review/teardown date reached for ${company} — preparing teardown.`;
+    default:
+      return action.reason;
   }
 }
 
