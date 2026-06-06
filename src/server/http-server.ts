@@ -453,7 +453,11 @@ function safeOAuthOrigin(value: string | null, fallback: string): string {
     if (
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
-      hostname.endsWith(".ngrok-free.app")
+      hostname.endsWith(".ngrok-free.app") ||
+      hostname === "agentic-presales.vercel.app" ||
+      hostname === "agentic-presales-jiffy-labs.vercel.app" ||
+      hostname === "agentic-presales-git-main-jiffy-labs.vercel.app" ||
+      /^agentic-presales-[a-z0-9-]+-jiffy-labs\.vercel\.app$/.test(hostname)
     ) {
       return origin;
     }

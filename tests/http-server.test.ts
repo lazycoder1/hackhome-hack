@@ -47,6 +47,44 @@ describe("createHttpApiServer", () => {
     }
   });
 
+  it("uses the Vercel frontend origin for Google OAuth redirects", async () => {
+    let captured: { origin: string; returnTo?: string } | undefined;
+    const server = createHttpApiServer({
+      workflow: fakeWorkflow(),
+      googleOAuth: {
+        status() {
+          return defaultGoogleStatus();
+        },
+        createAuthorizationUrl(input) {
+          captured = input;
+          return "https://accounts.example.test/oauth";
+        },
+        async handleCallback() {
+          return { returnTo: "/settings", expiresAt: "2026-06-05T11:00:00.000Z" };
+        },
+        forget() {
+          return defaultGoogleStatus();
+        },
+      },
+    });
+    const baseUrl = await listen(server);
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/integrations/google/oauth/start?origin=https%3A%2F%2Fagentic-presales.vercel.app&returnTo=%2Fsettings`,
+        { redirect: "manual" },
+      );
+
+      expect(response.status).toBe(302);
+      expect(captured).toEqual({
+        origin: "https://agentic-presales.vercel.app",
+        returnTo: "/settings",
+      });
+    } finally {
+      await close(server);
+    }
+  });
+
   it("serves and clears Google OAuth connector status", async () => {
     let connected = true;
     const server = createHttpApiServer({
@@ -963,6 +1001,18 @@ function fakeWorkflow(): WorkflowApi {
     async retryPocStage() {
       throw new Error("retryPocStage was not expected");
     },
+  };
+}
+
+function defaultGoogleStatus() {
+  return {
+    configured: true,
+    connected: false,
+    scopes: ["openid", "email", "https://www.googleapis.com/auth/gmail.compose"],
+    provider: "google",
+    deliveryMode: "draft" as const,
+    memoryOnly: false,
+    storage: "file" as const,
   };
 }
 
