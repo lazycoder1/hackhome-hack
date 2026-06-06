@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/AppShell";
 import { Banner, Section } from "../components/ui";
@@ -23,19 +23,57 @@ export function IntakePage() {
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emails, setEmails] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ pocId?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const addEmails = (values: string[]) => {
+    setEmails((current) => uniqueEmails([...current, ...values]));
+  };
+
+  const commitEmailDraft = () => {
+    const entries = parseEmailEntries(emailDraft);
+    if (!entries.length) return;
+    addEmails(entries);
+    setEmailDraft("");
+  };
+
+  const updateEmailDraft = (value: string) => {
+    if (!value.includes(",")) {
+      setEmailDraft(value);
+      return;
+    }
+
+    const parts = value.split(",");
+    addEmails(parseEmailEntries(parts.slice(0, -1).join(",")));
+    setEmailDraft(parts[parts.length - 1]?.trimStart() ?? "");
+  };
+
+  const handleEmailKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitEmailDraft();
+  };
+
+  const removeEmail = (email: string) => {
+    setEmails((current) => current.filter((item) => item !== email));
+  };
+
   const submit = async () => {
     setSubmitting(true);
     setError(null);
+    const participantEmails = uniqueEmails([...emails, ...parseEmailEntries(emailDraft)]);
+    setEmails(participantEmails);
+    setEmailDraft("");
     try {
       const res = await api.submitRequirements({
         source: "api",
         text,
-        participants: email ? [{ email, company: company || undefined }] : undefined,
+        participants: participantEmails.length
+          ? participantEmails.map((email) => ({ email, company: company || undefined }))
+          : [],
         sourceMetadata: { sourceId: `ui-${Date.now()}` },
       });
       setResult(res);
@@ -86,13 +124,35 @@ export function IntakePage() {
                 />
               </label>
               <label className="text-sm font-bold">
-                Primary contact email
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="dana@northwind.test"
-                  className="mt-1 w-full rounded-[10px] border-2 border-[var(--color-line)] bg-white p-2.5 font-medium outline-none focus:shadow-[2px_2px_0_0_#151515]"
-                />
+                Contact emails
+                <div className="mt-1 rounded-[10px] border-2 border-[var(--color-line)] bg-white p-2 outline-none focus-within:shadow-[2px_2px_0_0_#151515]">
+                  <div className="flex min-h-9 flex-wrap items-center gap-2">
+                    {emails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1 text-xs font-extrabold"
+                      >
+                        <span className="truncate">{email}</span>
+                        <button
+                          className="text-sm leading-none text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+                          type="button"
+                          aria-label={`Remove ${email}`}
+                          onClick={() => removeEmail(email)}
+                        >
+                          x
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={emailDraft}
+                      onChange={(e) => updateEmailDraft(e.target.value)}
+                      onKeyDown={handleEmailKeyDown}
+                      onBlur={commitEmailDraft}
+                      placeholder={emails.length ? "Add another..." : "dana@northwind.test, alex@northwind.test"}
+                      className="min-w-[180px] flex-1 border-0 bg-transparent p-1.5 font-medium outline-none"
+                    />
+                  </div>
+                </div>
               </label>
             </div>
           </Section>
@@ -131,4 +191,21 @@ export function IntakePage() {
       </div>
     </>
   );
+}
+
+function parseEmailEntries(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function uniqueEmails(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = value.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
